@@ -313,8 +313,12 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	}
 
 	function computeId(id) {
-		const newId = filterOptions.find((option) => option.value === id).id;
-		return newId;
+		const option = filterOptions.find((option) => option.value === id);
+		if (!option) {
+			console.warn(`No filter option found for bookmark ID: ${id}`);
+			return `fallback-${id}`; // Return a fallback ID instead of throwing error
+		}
+		return option.id;
 	}
 	function createFolderList(
 		bookmarkNode,
@@ -324,7 +328,15 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		sublistTitleClass
 	) {
 		const listItem = document.createElement("div");
-		listItem.id = computeId(bookmarkNode.id);
+		
+		// Safe ID computation with error handling
+		try {
+			listItem.id = computeId(bookmarkNode.id);
+		} catch (error) {
+			console.error("Error computing ID for bookmark:", bookmarkNode.title, error);
+			listItem.id = `fallback-${bookmarkNode.id}`;
+		}
+		
 		listItem.className =
 			sublistContainerClass ||
 			"flex-center flex-col m-auto gap-4";
@@ -354,7 +366,15 @@ chrome.bookmarks.getTree(function (bookmarks) {
 			// If there are matching children, create the folder list item
 			if (matchingChildren.length > 0) {
 				const folderTitle = document.createElement("h2");
-				folderTitle.id = computeId(bookmarkNode.id);
+				
+				// Safe ID computation for folder title
+				try {
+					folderTitle.id = computeId(bookmarkNode.id);
+				} catch (error) {
+					console.error("Error computing ID for folder title:", bookmarkNode.title, error);
+					folderTitle.id = `fallback-title-${bookmarkNode.id}`;
+				}
+				
 				folderTitle.textContent =
 					`${bookmarkNode.title} (${matchingChildren.length})` ||
 					"Untitled";
@@ -366,7 +386,16 @@ chrome.bookmarks.getTree(function (bookmarks) {
 				// if sublist className="all-sublist-container" add main title to beginning
 
 				const noFolderList = document.createElement("div");
-				noFolderList.id = computeId(matchingChildren[0].parentId);
+				
+				// Safe ID computation for noFolderList
+				try {
+					const parentId = matchingChildren[0]?.parentId || bookmarkNode.id;
+					noFolderList.id = computeId(parentId);
+				} catch (error) {
+					console.error("Error computing ID for noFolderList:", error);
+					noFolderList.id = `fallback-nofolder-${bookmarkNode.id}`;
+				}
+				
 				noFolderList.className =
 					"no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full ";
 
@@ -712,16 +741,17 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		const key = url;
 		chrome.storage.local.get([key], function (result) {
 			if (chrome.runtime.lastError) {
-				console.error(chrome.runtime.lastError.message);
-				callback(`https://www.google.com/s2/favicons?domain=${url}`); // Return default thumbnail URL
+				// Suppress storage errors - just use favicon fallback
+				callback(`https://www.google.com/s2/favicons?domain=${url}`);
 			} else {
 				const dataUrl = result[key];
 				if (dataUrl) {
 					callback(dataUrl);
 				} else {
+					// Suppress "not found" logs - just use favicon fallback
 					callback(
 						`https://www.google.com/s2/favicons?domain=${url}`
-					); // Return default thumbnail URL
+					);
 				}
 			}
 		});
