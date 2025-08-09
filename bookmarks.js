@@ -1,3 +1,55 @@
+function initializeTheme() {
+    function setTheme(theme, updateStorage = true) {
+        // Update button states with new styling
+        document.querySelectorAll('.theme-button').forEach(button => {
+            const isActive = button.dataset.theme === theme;
+            
+            if (isActive) {
+                button.classList.add('bg-indigo-50', 'border-indigo-400', 'text-zinc-900', 'dark:bg-indigo-500/10', 'dark:border-indigo-500', 'dark:text-zinc-100');
+                button.classList.remove('text-zinc-600', 'border-zinc-200', 'dark:text-zinc-400', 'dark:border-zinc-700');
+            } else {
+                button.classList.remove('bg-indigo-50', 'border-indigo-400', 'text-zinc-900', 'dark:bg-indigo-500/10', 'dark:border-indigo-500', 'dark:text-zinc-100');
+                button.classList.add('text-zinc-600', 'border-zinc-200', 'dark:text-zinc-400', 'dark:border-zinc-700');
+            }
+        });
+
+        // Apply theme
+        if (theme === 'system') {
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.classList.toggle('dark', systemDark);
+        } else {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+        }
+
+        // Save preference
+        if (updateStorage) {
+            chrome.storage.sync.set({ theme });
+        }
+    }
+
+    // Initialize theme on load
+    chrome.storage.sync.get(['theme'], function(result) {
+        const currentTheme = result.theme || 'system';
+        setTheme(currentTheme, false);
+    });
+
+    // Theme button click handlers
+    document.querySelectorAll('.theme-button').forEach(button => {
+        button.addEventListener('click', () => {
+            setTheme(button.dataset.theme);
+        });
+    });
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        chrome.storage.sync.get(['theme'], function(result) {
+            if (result.theme === 'system') {
+                setTheme('system', false);
+            }
+        });
+    });
+}
+
 chrome.bookmarks.getTree(function (bookmarks) {
 	const folderList = document.getElementById("folder-list");
 	const searchInput = document.getElementById("search-input");
@@ -13,8 +65,10 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	let gridViewEnabled = true;
 	let allBookmarks = [];
 
+	// Initialize theme handlers
+	initializeTheme();
+
 	settingsButton.addEventListener("click", function () {
-		//display settings modal
 		const settingsModal = document.getElementById("settings-modal");
 		settingsModal.classList.toggle("hidden");
 	});
@@ -966,22 +1020,37 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 	function deleteBookmark(bookmarkNode) {
 		const key = bookmarkNode.url;
-		chrome.bookmarks.remove(bookmarkNode.id, function () {
+		chrome.bookmarks.remove(bookmarkNode.id, function() {
 			console.log(`Deleted bookmark: ${bookmarkNode.title}`);
 
 			// Remove the corresponding thumbnail from local storage
-			chrome.storage.local.remove([key], function () {
-				console.log(
-					`Deleted screenshot for bookmark: ${bookmarkNode.title}`
+			chrome.storage.local.remove([key], function() {
+				// Remove from allBookmarks array
+				allBookmarks = allBookmarks.filter(b => 
+					b.bookmark.id !== bookmarkNode.id
 				);
-
-				// After deletion, re-fetch bookmarks and update the DOM
-				chrome.bookmarks.getTree(function (newBookmarks) {
-					filterBookmarks(
-						newBookmarks,
-						searchInput.value.trim().toLowerCase()
-					);
+				
+				// Update sortedBookmarks
+				sortedBookmarks = allBookmarks.sort((a, b) => {
+					const lastVisitedA = a.bookmark.dateLastUsed || a.bookmark.dateAdded;
+					const lastVisitedB = b.bookmark.dateLastUsed || b.bookmark.dateAdded;
+					return lastVisitedB - lastVisitedA;
 				});
+
+				// Get current search term
+				const searchTerm = searchInput.value.trim().toLowerCase();
+
+				// Refresh the current view without reloading
+				if (gridViewEnabled) {
+					showGridView(searchTerm);
+				} else {
+					// For folder view, get fresh bookmark tree
+					chrome.bookmarks.getTree(function(newBookmarks) {
+						// Reset the folder list
+						folderList.innerHTML = '';
+						filterBookmarks(newBookmarks, searchTerm);
+					});
+				}
 			});
 		});
 	}
