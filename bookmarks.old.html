@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Bookmark Hero</title>
+
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body class="bg-white dark:bg-zinc-950">
+	<div id="edit-modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
+		<div class="bg-white rounded-md p-6 w-96 dark:border-zinc-600 dark:bg-zinc-800">
+			<h3 class="text-lg font-semibold text-zinc-800 dark:text-zinc-100 block mb-2">
+				Edit Bookmark
+			</h3>
+			<p class="text-sm mb-6 text-zinc-600 dark:text-zinc-400 ">
+				Make changes to your bookmark here. Click save when you're done.
+			</p>
+			<div class="flex-center flex-col text-sm font-medium gap-3 mb-6">
+				<div class="flex-center gap-4 w-full">
+					<label for="title" class="w-16 flex-end label">Title</label>
+					<input type="text" name="title" id="edit-title" class="flex-start w-64 py-1.5 px-3 input"
+						placeholder="Title" />
+				</div>
+				<div class="flex-center gap-4 w-full">
+					<label for="url" class="w-16 flex-end label">URL</label>
+					<input type="text" name="url" id="edit-url" class="flex py-1.5 px-3 w-64 input"
+						placeholder="URL" />
+				</div>
+				<div class="flex-center gap-4 w-full">
+					<label for="folder-dropdown" class="w-16 flex-end label">Folder</label>
+					<div
+						class="flex-between w-64 relative">
+						<select id="folder-dropdown" name="folder-dropdown"
+							class="flex-between w-full h-full py-1.5 px-3 border-[1.5px] cursor-pointer appearance-none bg-transparent bg-no-repeat input"
+							<!-- Options --></select>
+						<img id="folder-dropdown-arrow" src="assets/icons/chevron-down.svg" alt="Chevron down svg"
+							class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
+					</div>
+				</div>
+			</div>
+
+			<div class="flex-end gap-2 text-sm">
+				<button id="cancel-edit" class="px-5 py-2 danger">
+					Cancel
+				</button>
+				<button id="save-edit" class="px-5 py-2 primary">
+					Save Changes
+				</button>
+			</div>
+		</div>
+	</div>
+	<!-- End of Edit Bookmark -->
+
+	<header class="w-full flex-center">
+		<div class="flex-center container h-24 text-sm">
+			<div class="flex-center w-full h-10 px-auto gap-4 bg-transparent">
+				<div class="flex-start gap-2 px-3 w-[780px] h-full input">
+					<img src="assets/icons/search.svg" alt="Search svg" id="search-icon" />
+
+					<input type="text" class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400" id="search-input" placeholder="Search Bookmarks..." autofocus />
+					<img src="assets/icons/x.svg" alt="Close button" id="clear-search" class="hidden cursor-pointer" />
+				</div>
+
+				<div class="rounded-md w-[180px] h-full relative">
+					<select id="filter"
+						class="flex-between w-full h-full pl-3 pr-10 cursor-pointer appearance-none bg-transparent bg-no-repeat gap-2 px-3 input"></select>
+					<img id="filter-dropdown-arrow" src="assets/icons/chevron-down.svg" alt="Chevron down svg" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
+				</div>
+
+				<div class="flex">
+					<button id="recents-view"
+						class="toggle rounded-l-md left active">
+						<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<g clip-path="url(#clip0_286_603)">
+								<path
+									d="M18.2222 18.4163L22.5 12L18.2222 5.58375C18.1537 5.48114 18.061 5.397 17.9523 5.33879C17.8435 5.28057 17.7221 5.25007 17.5988 5.25H3.75C3.55109 5.25 3.36032 5.32902 3.21967 5.46967C3.07902 5.61032 3 5.80109 3 6V18C3 18.1989 3.07902 18.3897 3.21967 18.5303C3.36032 18.671 3.55109 18.75 3.75 18.75H17.5988C17.7221 18.7499 17.8435 18.7194 17.9523 18.6612C18.061 18.603 18.1537 18.5189 18.2222 18.4163Z"
+									stroke="#4f46e5" fill="#4f46e5" stroke-linecap="round" stroke-linejoin="round"
+									id="recents-icon" />
+							</g>
+						
+						</svg>
+					</button>
+					<button id="folder-view" class="toggle rounded-r-md right in-active">
+						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+							<g clip-path="url(#clip0_286_617)">
+								<path
+									d="M20.3334 19.5H3.69188C3.50853 19.4995 3.33284 19.4265 3.20319 19.2968C3.07355 19.1672 3.00049 18.9915 3 18.8081V7.5H20.25C20.4489 7.5 20.6397 7.57902 20.7803 7.71967C20.921 7.86032 21 8.05109 21 8.25V18.8334C21 19.0102 20.9298 19.1798 20.8048 19.3048C20.6798 19.4298 20.5102 19.5 20.3334 19.5Z"
+									stroke="#A1A1AA" stroke-linecap="round" stroke-linejoin="round" fill="none"
+									class="folder-icon" />
+								<path
+									d="M3 7.5V5.25C3 5.05109 3.07902 4.86032 3.21967 4.71967C3.36032 4.57902 3.55109 4.5 3.75 4.5H8.68969C8.88834 4.50009 9.07883 4.57899 9.21937 4.71938L12 7.5"
+									stroke="#A1A1AA" stroke-linecap="round" stroke-linejoin="round" fill="none"
+									class="folder-icon" />
+							</g>
+				
+						</svg>
+					</button>
+
+				</div>
+			</div>
+		</div>
+		
+	</header>
+	<main class="w-full flex-center pb-10 mx-auto">
+		<div id="folder-list" class="max-w-[1064px] mx-auto"></div>
+	</main>
+
+	<footer class="fixed bottom-4 right-4 flex-center flex-col z-50">
+
+		<div class="relative">
+			<p class="flex items-center">
+				<button id="settings-btn" type="button" class="relative">
+					<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M9.99999 18.3333C14.6024 18.3333 18.3333 14.6023 18.3333 9.99996C18.3333 5.39759 14.6024 1.66663 9.99999 1.66663C5.39762 1.66663 1.66666 5.39759 1.66666 9.99996C1.66666 14.6023 5.39762 18.3333 9.99999 18.3333Z"
+							stroke="black" stroke-linecap="round" stroke-linejoin="round" />
+						<path d="M10 13.3333V10" stroke="black" stroke-linecap="round" stroke-linejoin="round" />
+						<path d="M10 6.66663H10.0083" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+					
+				</button>
+				<!-- 
+					
+				 -->
+			</p>
+			<div id="settings-modal"
+				class="absolute bottom-8 right-0 flex-col border border-zinc-300 dark:border-zinc-600 shadow-md rounded-md bg-white dark:bg-zinc-800 w-56 p-4 hidden">
+				<p class="text-sm text-zinc-700 dark:text-zinc-50">Built with love by <a target="_blank"
+						href="https://balamurugan.info" class="font-medium dark:text-zinc-50">Bala</a> & <a
+						target="_blank" href="https://github.com/narayanananth26"
+						class="font-medium dark:text-zinc-50">Ananth</a></p>
+				
+				<div class="flex-start w-full h-18 divide-x divide-zinc-300 dark:divide-zinc-500">
+					<div class="h-fit my-1 pr-2 flex-center link"><a target="_blank"
+							class="cursor-pointer" href="https://tally.so/r/n0xjLP">Feedback</a>
+					</div>
+					<div class="h-fit my-1 pl-2 flex-center link"><a target="_blank"
+							href="https://www.buymeacoffee.com/snmbala">Buy us a Coffee</a></div>
+				</div>
+				
+			</div>
+		</div>
+	</footer>
+
+	<script src="bookmarks.js"></script>
+</body>
+
+</html>
