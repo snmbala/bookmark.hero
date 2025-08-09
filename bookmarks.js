@@ -133,11 +133,30 @@ chrome.bookmarks.getTree(function (bookmarks) {
 				b.bookmark.dateLastUsed || b.bookmark.dateAdded;
 			return lastVisitedB - lastVisitedA;
 		});
+		
+		// Filter bookmarks based on search term and folder filter
+		let filteredBookmarks = sortedBookmarks.filter((bookmark) => {
+			const matchesSearch = !searchTerm || 
+				containsSearchTerm(bookmark.bookmark.title, searchTerm) || 
+				containsSearchTerm(bookmark.bookmark.url, searchTerm);
+			
+			// If filter is applied, also check folder
+			if (FILTER_ID && FILTER_ID !== 0 && FILTER_ID !== "all") {
+				const matchesFolder = bookmark.bookmark.parentId == FILTER_ID;
+				return matchesSearch && matchesFolder;
+			}
+			
+			return matchesSearch;
+		});
+		
 		// Clear existing items in the folderList
 		folderList.innerHTML = "";
+		
+		// Create dynamic title
 		const mainTitle = document.createElement("h2");
-		mainTitle.textContent = `Bookmarks (${sortedBookmarks.length})`;
+		mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, filteredBookmarks.length);
 		mainTitle.className = "container flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50  ";
+		
 		const gridContainer = document.createElement("div");
 		gridContainer.className = "w-fit";
 		folderList.appendChild(gridContainer);
@@ -148,26 +167,22 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		
 		// Display bookmarks in a single 4-column grid
 		console.log("sortedBookmarks", sortedBookmarks);
-		sortedBookmarks.forEach((bookmark) => {
+		filteredBookmarks.forEach((bookmark) => {
 			if (!bookmark.children) {
-				if (
-					containsSearchTerm(bookmark.bookmark.title, searchTerm) ||
-					containsSearchTerm(bookmark.bookmark.url, searchTerm)
-				) {
-					if (FILTER_ID && bookmark.bookmark.parentId === FILTER_ID) {
-						const bookmarkItem = createBookmarkCard(
-							bookmark.bookmark
-						);
-						grid.appendChild(bookmarkItem);
-					} else if (!FILTER_ID) {
-						const bookmarkItem = createBookmarkCard(
-							bookmark.bookmark
-						);
-						grid.appendChild(bookmarkItem);
-					}
-				}
+				const bookmarkItem = createBookmarkCard(bookmark.bookmark);
+				grid.appendChild(bookmarkItem);
 			}
 		});
+		
+		// Show no results message if needed
+		if (filteredBookmarks.length === 0) {
+			const noResultsMessage = document.createElement("p");
+			noResultsMessage.textContent = searchTerm ? 
+				`No bookmarks found matching "${searchTerm}"` : 
+				"No bookmarks found.";
+			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
+			gridContainer.appendChild(noResultsMessage);
+		}
 	}
 
 	// Event listener for toggle view button
@@ -285,31 +300,55 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	}
 
 	function filterBookmarks(bookmarks, searchTerm) {
+		console.log("filterBookmarks called with:", { bookmarks, searchTerm, FILTER_ID });
+		
 		// Clear existing items in the folderList
 		folderList.innerHTML = "";
-		const mainTitle = document.createElement("h1");
-		mainTitle.textContent = `Bookmarks (${sortedBookmarks.length})`;
-		mainTitle.className = "flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50";
-		folderList.appendChild(mainTitle);
+		
+		let totalCount = 0;
+		let folderItems = [];
+		
 		if (bookmarks && bookmarks.length > 0) {
 			const rootBookmark = bookmarks[0];
+			console.log("Processing root bookmark children:", rootBookmark.children);
+			
 			rootBookmark.children.forEach(function (child) {
+				console.log("Processing child:", child.title, "Has children:", !!child.children);
 				if (child.children) {
 					const folderListItem = createFolderList(child, searchTerm);
 					if (folderListItem) {
-						folderList.appendChild(folderListItem);
+						console.log("Successfully created folder list for:", child.title);
+						folderItems.push(folderListItem);
+						// Count items in this folder
+						const itemCount = countItemsInFolder(child, searchTerm, FILTER_ID);
+						totalCount += itemCount;
 					}
 				}
 			});
-			hideBookmarks(FILTER_ID);
-		} else {
-			console.warn("No bookmarks found");
-			const noBookmarksMessage = document.createElement("p");
-			noBookmarksMessage.textContent = "No bookmark folders found.";
-			folderList.appendChild(noBookmarksMessage);
 		}
-		// hideBookmarks(FILTER_ID);
-		// console.log("FILTER_ID", FILTER_ID);
+		
+		// Create dynamic title with actual count
+		const mainTitle = document.createElement("h1");
+		mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, totalCount);
+		mainTitle.className = "flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50";
+		folderList.appendChild(mainTitle);
+		
+		// Add folder items to DOM
+		folderItems.forEach(item => {
+			folderList.appendChild(item);
+		});
+		
+		if (totalCount === 0) {
+			const noResultsMessage = document.createElement("p");
+			noResultsMessage.textContent = searchTerm ? 
+				`No bookmarks found matching "${searchTerm}"` : 
+				"No bookmark folders found.";
+			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
+			folderList.appendChild(noResultsMessage);
+		}
+		
+		console.log("About to call hideBookmarks with FILTER_ID:", FILTER_ID);
+		hideBookmarks(FILTER_ID);
 	}
 
 	function computeId(id) {
@@ -319,6 +358,88 @@ chrome.bookmarks.getTree(function (bookmarks) {
 			return `fallback-${id}`; // Return a fallback ID instead of throwing error
 		}
 		return option.id;
+	}
+
+	function getDynamicTitle(searchTerm, filterId, currentCount) {
+		const hasSearch = searchTerm && searchTerm.trim().length > 0;
+		const hasFilter = filterId && filterId !== 0 && filterId !== "all";
+		
+		// Get folder name if filtered
+		let folderName = "";
+		let folderPath = "";
+		
+		if (hasFilter) {
+			const filterOption = filterOptions.find(option => option.value == filterId);
+			if (filterOption) {
+				folderName = filterOption.label.replace(/^[\s\-]*/, ''); // Remove leading spaces and dashes
+				// For nested folders, create a path
+				folderPath = folderName.includes('- ') ? 
+					folderName.replace(/\s*-\s*/g, ' > ') : 
+					folderName;
+			}
+		}
+		
+		// Generate dynamic title based on state
+		if (hasSearch && hasFilter) {
+			// Search + Folder: "Results for "query" in FolderName (count)"
+			if (currentCount === 0) {
+				return `No results for "${searchTerm}" in ${folderPath}`;
+			}
+			return `Results for "${searchTerm}" in ${folderPath} (${currentCount})`;
+		} else if (hasSearch) {
+			// Search only: "Results for "query" (count)" or "No results for "query""
+			if (currentCount === 0) {
+				return `No results for "${searchTerm}"`;
+			}
+			return `Results for "${searchTerm}" (${currentCount})`;
+		} else if (hasFilter) {
+			// Folder only: "Folder: FolderName (count)"
+			return `Folder: ${folderPath} (${currentCount})`;
+		} else {
+			// Default: "Bookmarks (totalCount)"
+			return `Bookmarks (${currentCount})`;
+		}
+	}
+
+	function countItemsInFolder(folderNode, searchTerm, filterId) {
+		let count = 0;
+		
+		if (!folderNode.children) {
+			return 0;
+		}
+		
+		// If we're filtering by a specific folder, only count items in that folder
+		if (filterId && filterId !== 0 && filterId !== "all") {
+			const filterOption = filterOptions.find(option => option.value == filterId);
+			if (filterOption) {
+				// Check if current folder matches the filter
+				if (folderNode.id !== filterId) {
+					// Check if this folder is a parent of the filtered folder
+					const isParentOfFilter = filterOption.id && filterOption.id.includes(`-${folderNode.id}-`);
+					if (!isParentOfFilter) {
+						return 0; // Don't count items if not in filtered path
+					}
+				}
+			}
+		}
+		
+		folderNode.children.forEach(child => {
+			if (child.children) {
+				// Recursively count items in subfolders
+				count += countItemsInFolder(child, searchTerm, filterId);
+			} else if (child.url) {
+				// Count bookmarks that match search criteria
+				const matchesSearch = !searchTerm || 
+					containsSearchTerm(child.title, searchTerm) || 
+					containsSearchTerm(child.url, searchTerm);
+				
+				if (matchesSearch) {
+					count++;
+				}
+			}
+		});
+		
+		return count;
 	}
 	function createFolderList(
 		bookmarkNode,
