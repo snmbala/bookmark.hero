@@ -152,10 +152,10 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		// Clear existing items in the folderList
 		folderList.innerHTML = "";
 		
-		// Create dynamic title
-		const mainTitle = document.createElement("h2");
+		// Create dynamic title with H1 for consistency
+		const mainTitle = document.createElement("h1");
 		mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, filteredBookmarks.length);
-		mainTitle.className = "container flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50  ";
+		mainTitle.className = "flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50";
 		
 		const gridContainer = document.createElement("div");
 		gridContainer.className = "w-fit";
@@ -183,6 +183,16 @@ chrome.bookmarks.getTree(function (bookmarks) {
 			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
 			gridContainer.appendChild(noResultsMessage);
 		}
+		
+		// Show no results message if needed
+		if (filteredBookmarks.length === 0) {
+			const noResultsMessage = document.createElement("p");
+			noResultsMessage.textContent = searchTerm ? 
+				`No bookmarks found matching "${searchTerm}"` : 
+				"No bookmarks found.";
+			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
+			gridContainer.appendChild(noResultsMessage);
+		}
 	}
 
 	// Event listener for toggle view button
@@ -194,7 +204,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		if (gridViewEnabled) {
 			showGridView(searchTerm);
 		} else {
-			hideBookmarks(FILTER_ID);
+			filterBookmarks(bookmarks, searchTerm);
 		}
 	});
 
@@ -401,6 +411,42 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		}
 	}
 
+	function getDynamicSectionTitle(folderNode, matchingChildren, searchTerm, filterId) {
+		const folderName = folderNode.title;
+		const count = matchingChildren.length;
+		const hasSearch = searchTerm && searchTerm.trim().length > 0;
+		const isFiltered = filterId && filterId !== 0 && filterId !== "all";
+		
+		// Don't show sections with 0 count at all
+		if (count === 0) {
+			return null;
+		}
+		
+		// Check if this is the actively filtered folder
+		const isActiveFilter = isFiltered && folderNode.id === filterId;
+		
+		// If this is the actively filtered folder, return null to hide the section title
+		// since it would be redundant with the page title
+		if (isActiveFilter) {
+			return null;
+		}
+		
+		// Generate context-aware title for sections with content
+		if (hasSearch && isFiltered) {
+			// Search + Filter: Show matching results in non-filtered folders
+			return `${folderName} - Results for "${searchTerm}" (${count})`;
+		} else if (hasSearch) {
+			// Search only: Show matches in each folder
+			return `${folderName} - Results for "${searchTerm}" (${count})`;
+		} else if (isFiltered) {
+			// Filter only: Show other folders normally
+			return `${folderName} (${count})`;
+		} else {
+			// Default: Show folder name with count
+			return `${folderName} (${count})`;
+		}
+	}
+
 	function countItemsInFolder(folderNode, searchTerm, filterId) {
 		let count = 0;
 		
@@ -440,6 +486,33 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		});
 		
 		return count;
+	}
+
+	function getDynamicSectionTitle(folderNode, matchingChildren, searchTerm, filterId) {
+		const folderName = folderNode.title;
+		const count = matchingChildren.length;
+		const hasSearch = searchTerm && searchTerm.trim().length > 0;
+		const isFiltered = filterId && filterId !== 0 && filterId !== "all";
+		
+		// Don't show sections with 0 count at all
+		if (count === 0) {
+			return null;
+		}
+		
+		// Generate context-aware title for sections with content
+		if (hasSearch && isFiltered) {
+			// Search + Filter: "Work - Results for 'tutorial' (2)"
+			return `${folderName} - Results for "${searchTerm}" (${count})`;
+		} else if (hasSearch) {
+			// Search only: "Work - Results for 'react' (3)"
+			return `${folderName} - Results for "${searchTerm}" (${count})`;
+		} else if (isFiltered) {
+			// Filter only: "Work - Filtered view (5)"
+			return `${folderName} - Filtered view (${count})`;
+		} else {
+			// Default: "Work (5)"
+			return `${folderName} (${count})`;
+		}
 	}
 	function createFolderList(
 		bookmarkNode,
@@ -486,6 +559,14 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 			// If there are matching children, create the folder list item
 			if (matchingChildren.length > 0) {
+				// Get dynamic section title - returns null if count is 0
+				const sectionTitle = getDynamicSectionTitle(bookmarkNode, matchingChildren, searchTerm, FILTER_ID);
+				
+				// Don't show section if title is null (0 count)
+				if (sectionTitle === null) {
+					return null;
+				}
+
 				const folderTitle = document.createElement("h2");
 				
 				// Safe ID computation for folder title
@@ -496,9 +577,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
 					folderTitle.id = `fallback-title-${bookmarkNode.id}`;
 				}
 				
-				folderTitle.textContent =
-					`${bookmarkNode.title} (${matchingChildren.length})` ||
-					"Untitled";
+				folderTitle.textContent = sectionTitle || "Untitled";
 				folderTitle.className =
 					sublistTitleClass || "container flex-start w-full text-semibold text-zinc-600 text-lg py-2 dark:text-zinc-200";
 
