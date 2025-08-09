@@ -169,22 +169,12 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		console.log("sortedBookmarks", sortedBookmarks);
 		filteredBookmarks.forEach((bookmark) => {
 			if (!bookmark.children) {
-				const bookmarkItem = createBookmarkCard(bookmark.bookmark);
+				const bookmarkItem = createBookmarkCard(bookmark.bookmark, searchTerm);
 				grid.appendChild(bookmarkItem);
 			}
 		});
 		
-		// Show no results message if needed
-		if (filteredBookmarks.length === 0) {
-			const noResultsMessage = document.createElement("p");
-			noResultsMessage.textContent = searchTerm ? 
-				`No bookmarks found matching "${searchTerm}"` : 
-				"No bookmarks found.";
-			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
-			gridContainer.appendChild(noResultsMessage);
-		}
-		
-		// Show no results message if needed
+		// Show no results message if needed (only once)
 		if (filteredBookmarks.length === 0) {
 			const noResultsMessage = document.createElement("p");
 			noResultsMessage.textContent = searchTerm ? 
@@ -411,42 +401,6 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		}
 	}
 
-	function getDynamicSectionTitle(folderNode, matchingChildren, searchTerm, filterId) {
-		const folderName = folderNode.title;
-		const count = matchingChildren.length;
-		const hasSearch = searchTerm && searchTerm.trim().length > 0;
-		const isFiltered = filterId && filterId !== 0 && filterId !== "all";
-		
-		// Don't show sections with 0 count at all
-		if (count === 0) {
-			return null;
-		}
-		
-		// Check if this is the actively filtered folder
-		const isActiveFilter = isFiltered && folderNode.id === filterId;
-		
-		// If this is the actively filtered folder, return null to hide the section title
-		// since it would be redundant with the page title
-		if (isActiveFilter) {
-			return null;
-		}
-		
-		// Generate context-aware title for sections with content
-		if (hasSearch && isFiltered) {
-			// Search + Filter: Show matching results in non-filtered folders
-			return `${folderName} - Results for "${searchTerm}" (${count})`;
-		} else if (hasSearch) {
-			// Search only: Show matches in each folder
-			return `${folderName} - Results for "${searchTerm}" (${count})`;
-		} else if (isFiltered) {
-			// Filter only: Show other folders normally
-			return `${folderName} (${count})`;
-		} else {
-			// Default: Show folder name with count
-			return `${folderName} (${count})`;
-		}
-	}
-
 	function countItemsInFolder(folderNode, searchTerm, filterId) {
 		let count = 0;
 		
@@ -499,18 +453,29 @@ chrome.bookmarks.getTree(function (bookmarks) {
 			return null;
 		}
 		
+		// Check if this is the actively filtered folder
+		const isActiveFilter = isFiltered && folderNode.id === filterId;
+		
+		// Check if this folder has child folders
+		const hasChildFolders = matchingChildren.some(child => child.children);
+		
+		// If this is the actively filtered folder and has no child folders, hide the section title
+		if (isActiveFilter && !hasChildFolders) {
+			return null;
+		}
+		
 		// Generate context-aware title for sections with content
 		if (hasSearch && isFiltered) {
-			// Search + Filter: "Work - Results for 'tutorial' (2)"
+			// Search + Filter: Show matching results in non-filtered folders
 			return `${folderName} - Results for "${searchTerm}" (${count})`;
 		} else if (hasSearch) {
-			// Search only: "Work - Results for 'react' (3)"
+			// Search only: Show matches in each folder
 			return `${folderName} - Results for "${searchTerm}" (${count})`;
 		} else if (isFiltered) {
-			// Filter only: "Work - Filtered view (5)"
-			return `${folderName} - Filtered view (${count})`;
+			// Filter only: Show other folders normally
+			return `${folderName} (${count})`;
 		} else {
-			// Default: "Work (5)"
+			// Default: Show folder name with count
 			return `${folderName} (${count})`;
 		}
 	}
@@ -729,13 +694,12 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 		const bookmarkLink = document.createElement("a");
 		bookmarkLink.className =
-			"flex-start text-base font-medium text-zinc-800 dark:text-zinc-50";
+			"flex-start text-base font-medium text-zinc-800 dark:text-zinc-50 whitespace-nowrap overflow-hidden text-ellipsis";
 		bookmarkLink.href = bookmarkNode.url;
 		bookmarkLink.target = "_blank";
 		bookmarkLink.innerHTML = highlightText(
 			bookmarkNode.title || "Untitled",
-			(searchTerm = "")
-			//!temporary fix
+			searchTerm
 		);
 		bookmarkLinkDiv.appendChild(bookmarkLink);
 
@@ -779,11 +743,14 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 		// If the pathname is not empty, append it to the trimmed URL
 		if (pathname && pathname !== "/") {
-			// Add the text-slate-400 class to the additional routes
-			trimmedURL += `<span class="text-zinc-400 whitespace-nowrap">${pathname}</span>`;
+			// Highlight both domain and path separately
+			trimmedURL = highlightText(trimmedURL, searchTerm) +
+				`<span class="text-zinc-400 whitespace-nowrap">${highlightText(pathname, searchTerm)}</span>`;
+		} else {
+			trimmedURL = highlightText(trimmedURL, searchTerm);
 		}
 
-		bookmarkURL.innerHTML = `${highlightText(trimmedURL, searchTerm)}`;
+		bookmarkURL.innerHTML = trimmedURL;
 		bookmarkURLDiv.appendChild(bookmarkURL);
 
 		cardDetailsSection.appendChild(bookmarkURLDiv);
@@ -977,16 +944,24 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	}
 
 	function highlightText(text, searchTerm) {
-		if (!searchTerm) {
-			return text; // Return plain text if no search term
+		if (!searchTerm || !text) {
+			return text;
 		}
 
-		const regex = new RegExp(`(${searchTerm})`, "gi");
-		return text.replace(
-			regex,
-			(match, p1) =>
-				`<span style="background-color: yellow; padding: 0; margin: 0;">${p1}</span>`
-		);
+		// Split search term into words and filter out empty strings
+		const searchWords = searchTerm.toLowerCase().split(/\s+/).filter(word => word.length > 0);
+		
+		let highlightedText = text;
+		
+		// Highlight each search word
+		searchWords.forEach(word => {
+			const regex = new RegExp(`(${word})`, 'gi');
+			highlightedText = highlightedText.replace(regex, 
+				'<mark class="bg-yellow-200 dark:bg-yellow-600 dark:text-zinc-100 px-0.5 rounded-sm">$1</mark>'
+			);
+		});
+		
+		return highlightedText;
 	}
 
 	function deleteBookmark(bookmarkNode) {

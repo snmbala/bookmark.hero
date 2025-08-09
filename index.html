@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Hero - Your Bookmarks, Supercharged</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="assets/icons/bookmark.png"/>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+    <!-- Hero Section -->
+    <header class="container mx-auto px-4 py-16 text-center">
+        <img src="assets/icons/bookmark.png" alt="Bookmark Hero" class="w-20 h-20 mx-auto mb-8">
+        <h1 class="text-4xl md:text-6xl font-bold mb-6">Bookmark Hero</h1>
+        <p class="text-xl md:text-2xl text-zinc-600 dark:text-zinc-400 mb-8">Your bookmarks, supercharged with superpowers</p>
+        <button class="bg-indigo-600 text-white px-8 py-3 rounded-full text-lg font-medium hover:bg-indigo-700 transition-colors">
+            Coming Soon to Chrome Store
+        </button>
+    </header>
+
+    <!-- Features Grid -->
+    <section class="container mx-auto px-4 py-16">
+        <h2 class="text-3xl font-bold text-center mb-12">Features That Matter</h2>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Dual View Feature -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-lg">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <img src="assets/icons/more.svg" alt="Dual View" class="w-6 h-6">
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Dual View Modes</h3>
+                <p class="text-zinc-600 dark:text-zinc-400">Switch between Grid and Folder views for different perspectives on your bookmarks</p>
+            </div>
+
+            <!-- Smart Search Feature -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-lg">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <img src="assets/icons/search.svg" alt="Smart Search" class="w-6 h-6">
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Smart Search</h3>
+                <p class="text-zinc-600 dark:text-zinc-400">Find any bookmark instantly with highlighted results and keyboard shortcuts</p>
+            </div>
+
+            <!-- Thumbnails Feature -->
+            <div class="bg-white dark:bg-zinc-800 rounded-lg p-6 shadow-lg">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <img src="assets/icons/camera.svg" alt="Thumbnails" class="w-6 h-6">
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Beautiful Thumbnails</h3>
+                <p class="text-zinc-600 dark:text-zinc-400">Auto-generated website previews with custom capture options</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshot Section -->
+    <section class="container mx-auto px-4 py-16">
+        <div class="bg-indigo-600 rounded-2xl p-8 md:p-12">
+            <img src="assets/screenshots/hero-screenshot.jpg" alt="Bookmark Hero Interface" class="rounded-lg shadow-2xl">
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="container mx-auto px-4 py-16">
+        <h2 class="text-3xl font-bold text-center mb-12">How It Works</h2>
+        <div class="max-w-3xl mx-auto space-y-8">
+            <div class="flex items-start gap-4">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-indigo-600 dark:text-indigo-400 font-semibold">1</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Install & Go</h3>
+                    <p class="text-zinc-600 dark:text-zinc-400">Install from Chrome Web Store and access your supercharged bookmarks instantly</p>
+                </div>
+            </div>
+            
+            <div class="flex items-start gap-4">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-indigo-600 dark:text-indigo-400 font-semibold">2</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Choose Your View</h3>
+                    <p class="text-zinc-600 dark:text-zinc-400">Switch between Grid and Folder views based on your preference</p>
+                </div>
+            </div>
+            
+            <div class="flex items-start gap-4">
+                <div class="bg-indigo-100 dark:bg-indigo-900 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-indigo-600 dark:text-indigo-400 font-semibold">3</span>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold mb-2">Organize & Search</h3>
+                    <p class="text-zinc-600 dark:text-zinc-400">Use powerful search and filtering to find exactly what you need</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="container mx-auto px-4 py-8 border-t border-zinc-200 dark:border-zinc-800">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-zinc-600 dark:text-zinc-400">© 2023 Bookmark Hero. All rights reserved.</p>
+            <div class="flex gap-6">
+                <a href="https://github.com/snmbala/bookmark.hero" class="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">GitHub</a>
+                <a href="#" class="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">Privacy Policy</a>
+                <a href="#" class="text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400">Terms of Use</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
