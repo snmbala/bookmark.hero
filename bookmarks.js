@@ -76,7 +76,17 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 	function toggleView() {
 		gridViewEnabled = !gridViewEnabled;
-		const searchTerm = searchInput.value.trim().toLowerCase();
+		
+		// Reset search input and clear search state
+		searchInput.value = "";
+		clearSearch.classList.add("hidden");
+		searchIcon.src = "assets/icons/search.svg";
+		
+		// Reset filter dropdown to "All"
+		filterDropdown.value = "all";
+		FILTER_ID = 0;
+		
+		const searchTerm = ""; // Now always empty after clearing
 		const folderIcons = document.querySelectorAll(".folder-icon"); // Select all folder-icon elements
 	
 		if (gridViewEnabled) {
@@ -162,17 +172,6 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 	// Event listener for toggle view button
 	recentsViewButton.addEventListener("click", toggleView);
-	filterDropdown.addEventListener("change", function (e) {
-		FILTER_ID = e.target.value == "all" ? 0 : e.target.value;
-		const searchTerm = searchInput.value.trim().toLowerCase();
-		if (gridViewEnabled) {
-			showGridView(searchTerm);
-		} else {
-			hideBookmarks(FILTER_ID);
-		}
-	});
-
-	// Event listener for toggle view button
 	folderViewButton.addEventListener("click", toggleView);
 	filterDropdown.addEventListener("change", function (e) {
 		FILTER_ID = e.target.value == "all" ? 0 : e.target.value;
@@ -185,14 +184,27 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	});
 
 	function hideBookmarks(id) {
+		// Toggle visibility of all bookmarks
+		const selectedFolderIdValue = id;
+		const allFolders = document.querySelectorAll(".sublist-container");
+		const noFolders = document.querySelectorAll(".no-folder-list");
+		const allTitles = document.querySelectorAll("h2");
 
-	// Toggle visibility of all bookmarks
-	const selectedFolderIdValue = id;
-	const allFolders = document.querySelectorAll(".sublist-container");
-	const noFolders = document.querySelectorAll(".no-folder-list");
-	const allTitles = document.querySelectorAll("h2");
+		// If FILTER_ID is 0 or "all", show everything
+		if (id === 0 || id === "all") {
+			allFolders.forEach(function (folder) {
+				folder.style.display = "grid";
+			});
+			noFolders.forEach(function (folder) {
+				folder.style.display = "grid";
+			});
+			allTitles.forEach(function (title) {
+				title.style.display = "flex";
+			});
+			return; // Exit early when showing all
+		}
 
-	const selectedId = selectedFolderIdValue && computeId(selectedFolderIdValue);
+		const selectedId = selectedFolderIdValue && computeId(selectedFolderIdValue);
 
 		allFolders.forEach(function (folder) {
 			if (
