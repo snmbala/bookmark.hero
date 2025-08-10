@@ -1,0 +1,10 @@
+# Files to include in the extension zip for Chrome Web Store submission
+background.js
+bookmarks.html
+bookmarks.js
+index.html
+manifest.json
+css/
+assets/
+readme.md
+tailwind.config.js

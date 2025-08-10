@@ -1,3 +1,25 @@
+// --- Settings icon color update logic ---
+function updateSettingsIconColor() {
+	const html = document.documentElement;
+	const settingsIcon = document.getElementById('settings-icon-svg');
+	if (!settingsIcon) return;
+	// Use indigo highlight for active, or match your toggle logic
+	if (html.classList.contains('dark')) {
+		settingsIcon.querySelectorAll('path').forEach(p => {
+			p.setAttribute('stroke', '#a5b4fc'); // indigo-200
+		});
+	} else {
+		settingsIcon.querySelectorAll('path').forEach(p => {
+			p.setAttribute('stroke', '#4f46e5'); // indigo-700
+		});
+	}
+}
+
+document.addEventListener("DOMContentLoaded", updateSettingsIconColor);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSettingsIconColor);
+// If you have a theme switcher, call updateSettingsIconColor() after switching theme:
+// Add this call after your theme is changed in your theme switcher logic:
+// updateSettingsIconColor();
 function initializeTheme() {
     function setTheme(theme, updateStorage = true) {
         // Update button states with new styling
@@ -68,9 +90,21 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	// Initialize theme handlers
 	initializeTheme();
 
-	settingsButton.addEventListener("click", function () {
-		const settingsModal = document.getElementById("settings-modal");
+	let settingsModalOpen = false;
+	const settingsModal = document.getElementById("settings-modal");
+	settingsButton.addEventListener("click", function (event) {
+		event.stopPropagation();
 		settingsModal.classList.toggle("hidden");
+		settingsModalOpen = !settingsModal.classList.contains("hidden");
+	});
+	settingsModal.addEventListener("click", function (event) {
+		event.stopPropagation();
+	});
+	document.addEventListener("click", function () {
+		if (settingsModalOpen && !settingsModal.classList.contains("hidden")) {
+			settingsModal.classList.add("hidden");
+			settingsModalOpen = false;
+		}
 	});
 
 	function collectBookmarks(node, folderName = "") {
@@ -139,25 +173,34 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		// Reset filter dropdown to "All"
 		filterDropdown.value = "all";
 		FILTER_ID = 0;
+		updateFilterIcon();
 		
 		const searchTerm = ""; // Now always empty after clearing
 		const folderIcons = document.querySelectorAll(".folder-icon"); // Select all folder-icon elements
 	
+		const settingsIcon = document.getElementById('settings-icon-svg');
 		if (gridViewEnabled) {
 			// Handle grid view
 			folderIcons.forEach(icon => {
 				icon.style.fill = "none";
 				icon.style.stroke = "#a1a1aa"; // Apply stroke to the folder icon
 			});
-	
+
 			folderViewButton.classList.remove("active");
 			folderViewButton.classList.add("in-active");
-	
+
 			recentsIconSvg.style.fill = "#4f46e5";
 			recentsIconSvg.style.stroke = "#4f46e5"; // Apply stroke to the recents icon
 			recentsViewButton.classList.add("active");
 			recentsViewButton.classList.remove("in-active");
-	
+
+			// Settings icon: match recents icon (active)
+			if (settingsIcon) {
+				settingsIcon.querySelectorAll('path').forEach(p => {
+					p.setAttribute('stroke', '#4f46e5'); // Indigo for active
+				});
+			}
+
 			showGridView(searchTerm);
 		} else {
 			// Handle default view
@@ -165,15 +208,22 @@ chrome.bookmarks.getTree(function (bookmarks) {
 				icon.style.fill = "#4f46e5";
 				icon.style.stroke = "#4f46e5"; // Apply stroke to the folder icon
 			});
-	
+
 			folderViewButton.classList.add("active");
 			folderViewButton.classList.remove("in-active");
-			
+            
 			recentsIconSvg.style.stroke = "#a1a1aa";
 			recentsIconSvg.style.fill = "none";
 			recentsViewButton.classList.remove("active");
 			recentsViewButton.classList.add("in-active");
-			
+
+			// Settings icon: match folder icon (inactive)
+			if (settingsIcon) {
+				settingsIcon.querySelectorAll('path').forEach(p => {
+					p.setAttribute('stroke', '#a1a1aa'); // Gray for inactive
+				});
+			}
+
 			filterBookmarks(bookmarks, searchTerm);
 		}
 	}
@@ -355,53 +405,127 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
 	function filterBookmarks(bookmarks, searchTerm) {
 		console.log("filterBookmarks called with:", { bookmarks, searchTerm, FILTER_ID });
-		
 		// Clear existing items in the folderList
 		folderList.innerHTML = "";
-		
 		let totalCount = 0;
 		let folderItems = [];
-		
 		if (bookmarks && bookmarks.length > 0) {
 			const rootBookmark = bookmarks[0];
-			console.log("Processing root bookmark children:", rootBookmark.children);
-			
-			rootBookmark.children.forEach(function (child) {
-				console.log("Processing child:", child.title, "Has children:", !!child.children);
+			// If a filter is applied, show bookmarks directly under that folder and subfolders as sections
+			if (FILTER_ID && FILTER_ID !== 0 && FILTER_ID !== "all") {
+				// Find the filtered folder node
+				function findFolderById(node, id) {
+					if (node.id === id) return node;
+					if (node.children) {
+						for (const child of node.children) {
+							const found = findFolderById(child, id);
+							if (found) return found;
+						}
+					}
+					return null;
+				}
+				const filteredFolder = findFolderById(rootBookmark, FILTER_ID);
+				if (filteredFolder) {
+					// Count bookmarks recursively for the title (including subfolders)
+					totalCount = countBookmarksRecursive(filteredFolder, searchTerm);
+					console.log("[filterBookmarks] Filtered folder found:", filteredFolder.title);
+					console.log("[filterBookmarks] Total bookmarks in folder (including subfolders):", totalCount);
+					
+					// Render section title
+					const mainTitle = document.createElement("h1");
+					mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, totalCount);
+					mainTitle.className = "flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50";
+					folderList.appendChild(mainTitle);
+
+					// Render bookmarks directly under this folder (at the top)
+					const bookmarksGrid = document.createElement("div");
+					bookmarksGrid.className = "no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full";
+					bookmarksGrid.id = `no-folder-list-${FILTER_ID}`;
+					let hasDirectBookmarks = false;
+					let directBookmarksCount = 0;
+					
+					if (filteredFolder.children) {
+						for (const child of filteredFolder.children) {
+							// Only process direct bookmarks (not folders)
+							if (!child.children && child.url) {
+								const matchesSearch = !searchTerm ||
+									containsSearchTerm(child.title, searchTerm) ||
+									containsSearchTerm(child.url, searchTerm);
+								if (matchesSearch) {
+									const bookmarkListItem = createBookmarkCard(child, searchTerm);
+									bookmarksGrid.appendChild(bookmarkListItem);
+									hasDirectBookmarks = true;
+									directBookmarksCount++;
+								}
+							}
+						}
+					}
+					
+					console.log(`[filterBookmarks] Direct bookmarks found: ${directBookmarksCount}, hasDirectBookmarks: ${hasDirectBookmarks}`);
+					
+					// Always append the bookmarks grid (even if empty) to maintain structure
+					folderList.appendChild(bookmarksGrid);
+
+					// Render subfolders (if any) as sections below
+					let subfolderCount = 0;
+					if (filteredFolder.children) {
+						for (const child of filteredFolder.children) {
+							if (child.children) {
+								const folderListItem = createFolderList(child, searchTerm);
+								if (folderListItem) {
+									folderList.appendChild(folderListItem);
+									subfolderCount++;
+								}
+							}
+						}
+					}
+					console.log(`[filterBookmarks] Subfolders rendered: ${subfolderCount}`);
+					
+					// Show "no results" only if there are no bookmarks at all
+					if (totalCount === 0) {
+						const noResultsMessage = document.createElement("p");
+						noResultsMessage.textContent = searchTerm ?
+							`No bookmarks found matching "${searchTerm}"` :
+							"No bookmarks found.";
+						noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
+						folderList.appendChild(noResultsMessage);
+					}
+					
+					// Don't call hideBookmarks when filtering - we want to show everything under the selected folder
+					console.log("[filterBookmarks] Completed rendering for filtered folder, skipping hideBookmarks");
+					return;
+				}
+			}
+			// Default: show all folders at root
+			const rootChildren = rootBookmark.children || [];
+			rootChildren.forEach(function (child) {
 				if (child.children) {
 					const folderListItem = createFolderList(child, searchTerm);
 					if (folderListItem) {
-						console.log("Successfully created folder list for:", child.title);
 						folderItems.push(folderListItem);
-						// Count items in this folder
 						const itemCount = countItemsInFolder(child, searchTerm, FILTER_ID);
 						totalCount += itemCount;
 					}
 				}
 			});
 		}
-		
 		// Create dynamic title with actual count
 		const mainTitle = document.createElement("h1");
 		mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, totalCount);
 		mainTitle.className = "flex-start w-full font-semibold text-lg py-2 text-zinc-800 dark:text-zinc-50";
 		folderList.appendChild(mainTitle);
-		
 		// Add folder items to DOM
 		folderItems.forEach(item => {
 			folderList.appendChild(item);
 		});
-		
 		if (totalCount === 0) {
 			const noResultsMessage = document.createElement("p");
-			noResultsMessage.textContent = searchTerm ? 
-				`No bookmarks found matching "${searchTerm}"` : 
+			noResultsMessage.textContent = searchTerm ?
+				`No bookmarks found matching "${searchTerm}"` :
 				"No bookmark folders found.";
 			noResultsMessage.className = "text-zinc-500 dark:text-zinc-400 mt-4";
 			folderList.appendChild(noResultsMessage);
 		}
-		
-		console.log("About to call hideBookmarks with FILTER_ID:", FILTER_ID);
 		hideBookmarks(FILTER_ID);
 	}
 
@@ -496,40 +620,38 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		return count;
 	}
 
-	function getDynamicSectionTitle(folderNode, matchingChildren, searchTerm, filterId) {
+	// Recursively count bookmarks (nodes with url) in a folder node
+	function countBookmarksRecursive(node, searchTerm) {
+		let count = 0;
+		if (node.children) {
+			for (const child of node.children) {
+				count += countBookmarksRecursive(child, searchTerm);
+			}
+		} else if (node.url) {
+			// Count only bookmarks, optionally filter by searchTerm
+			const matchesSearch = !searchTerm ||
+				containsSearchTerm(node.title, searchTerm) ||
+				containsSearchTerm(node.url, searchTerm);
+			if (matchesSearch) count++;
+		}
+		return count;
+	}
+
+	function getDynamicSectionTitle(folderNode, searchTerm, filterId) {
 		const folderName = folderNode.title;
-		const count = matchingChildren.length;
+		const count = countBookmarksRecursive(folderNode, searchTerm);
 		const hasSearch = searchTerm && searchTerm.trim().length > 0;
 		const isFiltered = filterId && filterId !== 0 && filterId !== "all";
-		
-		// Don't show sections with 0 count at all
 		if (count === 0) {
 			return null;
 		}
-		
-		// Check if this is the actively filtered folder
-		const isActiveFilter = isFiltered && folderNode.id === filterId;
-		
-		// Check if this folder has child folders
-		const hasChildFolders = matchingChildren.some(child => child.children);
-		
-		// If this is the actively filtered folder and has no child folders, hide the section title
-		if (isActiveFilter && !hasChildFolders) {
-			return null;
-		}
-		
-		// Generate context-aware title for sections with content
 		if (hasSearch && isFiltered) {
-			// Search + Filter: Show matching results in non-filtered folders
 			return `${folderName} - Results for "${searchTerm}" (${count})`;
 		} else if (hasSearch) {
-			// Search only: Show matches in each folder
 			return `${folderName} - Results for "${searchTerm}" (${count})`;
 		} else if (isFiltered) {
-			// Filter only: Show other folders normally
 			return `${folderName} (${count})`;
 		} else {
-			// Default: Show folder name with count
 			return `${folderName} (${count})`;
 		}
 	}
@@ -555,103 +677,72 @@ chrome.bookmarks.getTree(function (bookmarks) {
 			"flex-center flex-col m-auto gap-4";
 
 		if (bookmarkNode.children && bookmarkNode.children.length > 0) {
-			const matchingChildren = bookmarkNode.children.filter((child) => {
+			// Only show this folder if it contains at least one bookmark (recursively)
+			const sectionTitle = getDynamicSectionTitle(bookmarkNode, searchTerm, FILTER_ID);
+			if (sectionTitle === null) {
+				return null;
+			}
+
+			const folderTitle = document.createElement("h2");
+			try {
+				folderTitle.id = computeId(bookmarkNode.id);
+			} catch (error) {
+				console.error("Error computing ID for folder title:", bookmarkNode.title, error);
+				folderTitle.id = `fallback-title-${bookmarkNode.id}`;
+			}
+			folderTitle.textContent = sectionTitle || "Untitled";
+			folderTitle.className =
+				sublistTitleClass || "container flex-start w-full text-semibold text-zinc-600 text-lg py-2 dark:text-zinc-200";
+
+			const subList = document.createElement("div");
+			subList.className = sublistGridClass || "all-sublist-container";
+
+			const noFolderList = document.createElement("div");
+			try {
+				noFolderList.id = computeId(bookmarkNode.id);
+			} catch (error) {
+				console.error("Error computing ID for noFolderList:", error);
+				noFolderList.id = `fallback-nofolder-${bookmarkNode.id}`;
+			}
+			noFolderList.className =
+				"no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full ";
+
+			let folders = [];
+			for (const child of bookmarkNode.children) {
 				if (child.children) {
-					// Recursively check for matching children
 					const subFolderList = createFolderList(
 						child,
 						searchTerm,
-						"container w-full flex-center flex-col gap-3", // sublistContainerClass
-						"container grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full gap-8", // sublistGridClass
-						"flex-start container w-full text-semibold text-zinc-600 text-lg py-2" // sublistTitleClass
+						"sublist-container container w-full flex-center flex-col gap-3", // sublistContainerClass
+						"", // sublistGridClass
+						"sublist-title container flex-start w-full text-semibold text-zinc-600 dark:text-zinc-300 text-lg py-2" // sublistTitleClass
 					);
-					return subFolderList !== null;
-				} else {
-					// Check if the child matches the search term
-					return (
-						(child.url &&
-							containsSearchTerm(child.url, searchTerm)) ||
-						containsSearchTerm(child.title, searchTerm)
-					);
-				}
-			});
-
-			// If there are matching children, create the folder list item
-			if (matchingChildren.length > 0) {
-				// Get dynamic section title - returns null if count is 0
-				const sectionTitle = getDynamicSectionTitle(bookmarkNode, matchingChildren, searchTerm, FILTER_ID);
-				
-				// Don't show section if title is null (0 count)
-				if (sectionTitle === null) {
-					return null;
-				}
-
-				const folderTitle = document.createElement("h2");
-				
-				// Safe ID computation for folder title
-				try {
-					folderTitle.id = computeId(bookmarkNode.id);
-				} catch (error) {
-					console.error("Error computing ID for folder title:", bookmarkNode.title, error);
-					folderTitle.id = `fallback-title-${bookmarkNode.id}`;
-				}
-				
-				folderTitle.textContent = sectionTitle || "Untitled";
-				folderTitle.className =
-					sublistTitleClass || "container flex-start w-full text-semibold text-zinc-600 text-lg py-2 dark:text-zinc-200";
-
-				const subList = document.createElement("div");
-				subList.className = sublistGridClass || "all-sublist-container";
-				// if sublist className="all-sublist-container" add main title to beginning
-
-				const noFolderList = document.createElement("div");
-				
-				// Safe ID computation for noFolderList
-				try {
-					const parentId = matchingChildren[0]?.parentId || bookmarkNode.id;
-					noFolderList.id = computeId(parentId);
-				} catch (error) {
-					console.error("Error computing ID for noFolderList:", error);
-					noFolderList.id = `fallback-nofolder-${bookmarkNode.id}`;
-				}
-				
-				noFolderList.className =
-					"no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full ";
-
-				let folders = [];
-
-				matchingChildren.forEach((child) => {
-					if (child.children) {
-						const subFolderList = createFolderList(
-							child,
-							searchTerm,
-							"sublist-container container w-full flex-center flex-col gap-3", // sublistContainerClass
-							"", // sublistGridClass
-							"sublist-title container flex-start w-full text-semibold text-zinc-600 dark:text-zinc-300 text-lg py-2" // sublistTitleClass
-						);
-						if (subFolderList) {
-							folders.push(subFolderList);
-						}
-					} else {
+					if (subFolderList) {
+						folders.push(subFolderList);
+					}
+				} else if (child.url) {
+					// Only add bookmarks (not folders)
+					const matchesSearch = !searchTerm ||
+						containsSearchTerm(child.title, searchTerm) ||
+						containsSearchTerm(child.url, searchTerm);
+					if (matchesSearch) {
 						const bookmarkListItem = createBookmarkCard(
 							child,
 							searchTerm
 						);
 						noFolderList.appendChild(bookmarkListItem);
 					}
-				});
-				subList.appendChild(folderTitle);
-				subList.appendChild(noFolderList);
-				folders.forEach((folder) => {
-					subList.appendChild(folder);
-				});
-
-				listItem.appendChild(subList);
-
-				return listItem;
+				}
 			}
-		}
+			subList.appendChild(folderTitle);
+			subList.appendChild(noFolderList);
+			folders.forEach((folder) => {
+				subList.appendChild(folder);
+			});
 
+			listItem.appendChild(subList);
+			return listItem;
+		}
 		return null; // Return null if no matching items
 	}
 
@@ -1250,4 +1341,141 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	}
 
 	showGridView("");
+
+	// Theme switcher logic for Tailwind dark/light mode in settings modal
+	(function () {
+		const buttons = document.querySelectorAll('.theme-toggle-btn');
+		if (!buttons.length) return;
+		const html = document.documentElement;
+
+		function getTheme(cb) {
+			if (chrome?.storage?.sync) {
+				chrome.storage.sync.get(['appearanceMode'], res => cb(res.appearanceMode || 'auto'));
+			} else {
+				cb(localStorage.getItem('appearanceMode') || 'auto');
+			}
+		}
+		function setTheme(mode) {
+			if (chrome?.storage?.sync) {
+				chrome.storage.sync.set({ appearanceMode: mode });
+			} else {
+				localStorage.setItem('appearanceMode', mode);
+			}
+		}
+
+		function setActive(mode) {
+					buttons.forEach((b, i) => {
+						b.classList.remove(
+							'bg-indigo-50', 'border-2', 'border-indigo-400', 'text-indigo-700',
+							'bg-white', 'text-zinc-500', 'dark:bg-indigo-500/10', 'dark:border-indigo-400', 'dark:text-indigo-200',
+							'dark:bg-zinc-700', 'dark:text-zinc-300', 'rounded-l-md', 'rounded-r-md'
+						);
+						// Default state
+						b.classList.add('bg-white', 'text-zinc-500', 'dark:bg-zinc-700', 'dark:text-zinc-300');
+						if (i === 0) b.classList.add('rounded-l-md');
+						if (i === buttons.length - 1) b.classList.add('rounded-r-md');
+						// Active state
+						if (
+							(mode === 'auto' && b.getAttribute('data-theme') === 'auto') ||
+							(mode === 'light' && b.getAttribute('data-theme') === 'light') ||
+							(mode === 'dark' && b.getAttribute('data-theme') === 'dark')
+						) {
+							b.classList.remove('bg-white', 'text-zinc-500', 'dark:bg-zinc-700', 'dark:text-zinc-300');
+							b.classList.add('bg-indigo-50', 'border-2', 'border-indigo-400', 'text-indigo-700', 'dark:bg-indigo-500/10', 'dark:border-indigo-400', 'dark:text-indigo-200');
+						} else {
+							b.classList.remove('border-2', 'border-indigo-400', 'text-indigo-700', 'dark:bg-indigo-500/10', 'dark:border-indigo-400', 'dark:text-indigo-200');
+						}
+					});
+				}
+
+		function applyTheme(mode) {
+			if (mode === 'dark') {
+				html.classList.add('dark');
+			} else if (mode === 'light') {
+				html.classList.remove('dark');
+			} else {
+				// auto
+				if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					html.classList.add('dark');
+				} else {
+					html.classList.remove('dark');
+				}
+			}
+		}
+
+		// Initial load
+		getTheme(mode => {
+			setActive(mode);
+			applyTheme(mode);
+		});
+
+		// Click handlers
+		buttons.forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const mode = btn.getAttribute('data-theme');
+				setTheme(mode);
+				setActive(mode);
+				applyTheme(mode);
+			});
+		});
+
+		// Listen for system theme changes if in auto mode
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+			getTheme(mode => {
+				if (mode === 'auto') applyTheme('auto');
+			});
+		});
+	})();
+
+	// --- Filter chevron/clear icon toggle logic ---
+	function updateFilterIcon() {
+		const filterSelect = document.getElementById('filter');
+		const chevron = document.getElementById('filter-dropdown-arrow');
+		const clearIcon = document.getElementById('filter-clear');
+		if (filterSelect && chevron && clearIcon) {
+			if (filterSelect.value && filterSelect.value !== 'all') {
+				chevron.classList.add('hidden');
+				clearIcon.classList.remove('hidden');
+			} else {
+				chevron.classList.remove('hidden');
+				clearIcon.classList.add('hidden');
+			}
+		}
+	}
+
+	document.addEventListener("DOMContentLoaded", function () {
+		const filterSelect = document.getElementById('filter');
+		const chevron = document.getElementById('filter-dropdown-arrow');
+		const clearIcon = document.getElementById('filter-clear');
+
+		function updateFilterIcon() {
+			if (filterSelect && chevron && clearIcon) {
+				if (filterSelect.value && filterSelect.value !== 'all') {
+					chevron.classList.add('hidden');
+					clearIcon.classList.remove('hidden');
+				} else {
+					chevron.classList.remove('hidden');
+					clearIcon.classList.add('hidden');
+				}
+			}
+		}
+
+		if (filterSelect) {
+			filterSelect.addEventListener('change', function () {
+				updateFilterIcon();
+			});
+		}
+
+		if (clearIcon) {
+			clearIcon.addEventListener('click', function () {
+				if (filterSelect) {
+					filterSelect.value = 'all';
+					filterSelect.dispatchEvent(new Event('change'));
+				}
+			});
+		}
+
+		// Initial state
+		updateFilterIcon();
+	});
 });

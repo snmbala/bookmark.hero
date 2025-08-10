@@ -68,6 +68,7 @@
 					<select id="filter"
 						class="flex-between w-full h-full pl-3 pr-10 cursor-pointer appearance-none bg-transparent bg-no-repeat gap-2 px-3 input"></select>
 					<img id="filter-dropdown-arrow" src="assets/icons/chevron-down.svg" alt="Chevron down svg" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
+					<img id="filter-clear" src="assets/icons/x.svg" alt="Clear filter" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1 cursor-pointer hidden" />
 				</div>
 
 				<div class="flex">
@@ -112,14 +113,13 @@
 
 		<div class="relative">
 			<p class="flex items-center">
-				<button id="settings-btn" type="button" class="relative">
-					<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<button id="settings-btn" type="button" aria-label="Settings" class="relative text-zinc-500 dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 focus:outline-none transition-colors">
+					<svg id="settings-icon-svg" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
 						<path d="M9.99999 18.3333C14.6024 18.3333 18.3333 14.6023 18.3333 9.99996C18.3333 5.39759 14.6024 1.66663 9.99999 1.66663C5.39762 1.66663 1.66666 5.39759 1.66666 9.99996C1.66666 14.6023 5.39762 18.3333 9.99999 18.3333Z"
-							stroke="black" stroke-linecap="round" stroke-linejoin="round" />
-						<path d="M10 13.3333V10" stroke="black" stroke-linecap="round" stroke-linejoin="round" />
-						<path d="M10 6.66663H10.0083" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+							stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+						<path d="M10 13.3333V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+						<path d="M10 6.66663H10.0083" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
 					</svg>
-					
 				</button>
 				<!-- 
 					
@@ -132,27 +132,24 @@
 						target="_blank" href="https://github.com/narayanananth26"
 						class="font-medium dark:text-zinc-50">Ananth</a></p>
 
-				<div class="py-3 border-t border-zinc-200 dark:border-zinc-700">
-					<div class="mb-2">
-						<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Appearance</span>
-					</div>
-					<div class="flex w-full">
-						<button type="button" data-theme="system" 
-							class="theme-button flex-1 px-3 py-1.5 text-sm font-medium rounded-l-md border border-zinc-200 dark:border-zinc-700 text-zinc-600
-							hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center">
-							Auto
-						</button>
-						<button type="button" data-theme="light" 
-							class="theme-button flex-1 px-3 py-1.5 text-sm font-medium border-y border-r border-zinc-200 dark:border-zinc-700 text-zinc-600
-							hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center">
-							Light
-						</button>
-						<button type="button" data-theme="dark" 
-							class="theme-button flex-1 px-3 py-1.5 text-sm font-medium rounded-r-md border-y border-r border-zinc-200 dark:border-zinc-700 text-zinc-600
-							hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center justify-center">
-							Dark
-						</button>
-					</div>
+				<div class="py-3">
+								<div class="mb-2">
+									<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Appearance</span>
+								</div>
+								<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
+									<button type="button" data-theme="auto"
+										class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
+										Auto
+									</button>
+									<button type="button" data-theme="light"
+										class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] text-sm font-medium leading-5 transition-colors">
+										Light
+									</button>
+									<button type="button" data-theme="dark"
+										class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
+										Dark
+									</button>
+								</div>
 				</div>
 
 				<div class="flex-start w-full h-18 divide-x divide-zinc-300 dark:divide-zinc-500">
