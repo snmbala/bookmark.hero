@@ -295,6 +295,10 @@ chrome.bookmarks.getTree(function (bookmarks) {
 	filterDropdown.addEventListener("change", function (e) {
 		FILTER_ID = e.target.value == "all" ? 0 : e.target.value;
 		const searchTerm = searchInput.value.trim().toLowerCase();
+		
+		// Update filter icon when dropdown changes
+		updateFilterIcon();
+		
 		if (gridViewEnabled) {
 			showGridView(searchTerm);
 		} else {
@@ -392,6 +396,12 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		filterOption.className = "flex-center flex-col bg-zinc-100 w-44 h-32 rounded shadow-md text-zinc-800 text-sm font-normal cursor-pointer py-5";
 		filterDropdown.appendChild(filterOption);
 	});
+
+	// Initialize filter icon after options are added
+	setTimeout(() => {
+		updateFilterIcon();
+		console.log("Filter icon updated after options populated");
+	}, 200);
 
 	if (!folderList) {
 		console.error("Unable to find 'folder-list' element");
@@ -1432,50 +1442,58 @@ chrome.bookmarks.getTree(function (bookmarks) {
 		const filterSelect = document.getElementById('filter');
 		const chevron = document.getElementById('filter-dropdown-arrow');
 		const clearIcon = document.getElementById('filter-clear');
+		
+		console.log("updateFilterIcon called - filter value:", filterSelect?.value);
+		console.log("Elements found:", { filterSelect: !!filterSelect, chevron: !!chevron, clearIcon: !!clearIcon });
+		
 		if (filterSelect && chevron && clearIcon) {
 			if (filterSelect.value && filterSelect.value !== 'all') {
 				chevron.classList.add('hidden');
 				clearIcon.classList.remove('hidden');
+				console.log("Clear icon shown, chevron hidden");
 			} else {
 				chevron.classList.remove('hidden');
 				clearIcon.classList.add('hidden');
+				console.log("Chevron shown, clear icon hidden");
 			}
+		} else {
+			console.warn("Missing elements for updateFilterIcon:", {
+				filterSelect: !!filterSelect,
+				chevron: !!chevron,
+				clearIcon: !!clearIcon
+			});
 		}
 	}
 
-	document.addEventListener("DOMContentLoaded", function () {
+	// Initialize filter icon and add clear functionality
+	setTimeout(() => {
 		const filterSelect = document.getElementById('filter');
-		const chevron = document.getElementById('filter-dropdown-arrow');
 		const clearIcon = document.getElementById('filter-clear');
-
-		function updateFilterIcon() {
-			if (filterSelect && chevron && clearIcon) {
-				if (filterSelect.value && filterSelect.value !== 'all') {
-					chevron.classList.add('hidden');
-					clearIcon.classList.remove('hidden');
-				} else {
-					chevron.classList.remove('hidden');
-					clearIcon.classList.add('hidden');
-				}
-			}
-		}
-
-		if (filterSelect) {
-			filterSelect.addEventListener('change', function () {
-				updateFilterIcon();
-			});
-		}
-
+		
+		// Initialize filter icon state
+		updateFilterIcon();
+		console.log("Initial filter icon state set");
+		
+		// Add clear icon click handler
 		if (clearIcon) {
 			clearIcon.addEventListener('click', function () {
+				console.log("Clear icon clicked");
 				if (filterSelect) {
 					filterSelect.value = 'all';
-					filterSelect.dispatchEvent(new Event('change'));
+					FILTER_ID = 0; // Reset the global filter ID
+					
+					// Update filter icon
+					updateFilterIcon();
+					
+					// Refresh the view
+					const searchTerm = searchInput.value.trim().toLowerCase();
+					if (gridViewEnabled) {
+						showGridView(searchTerm);
+					} else {
+						filterBookmarks(bookmarks, searchTerm);
+					}
 				}
 			});
 		}
-
-		// Initial state
-		updateFilterIcon();
-	});
+	}, 100);
 });
