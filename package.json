@@ -1,5 +1,5 @@
 {
-  "name": "Bookmark Hero",
+  "name": "bookmark-hero",
   "version": "1.0.0",
   "description": "",
   "main": "background.js",
@@ -15,5 +15,5 @@
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"
+    }
   }
-}
