@@ -244,6 +244,14 @@ chrome.bookmarks.getTree(function (bookmarks) {
         // Clear existing items in the folderList
         folderList.innerHTML = "";
         
+        // Cleanup previous scroll event listeners
+        const existingGrids = document.querySelectorAll('[data-scroll-handler]');
+        existingGrids.forEach(grid => {
+            if (grid.scrollHandler) {
+                window.removeEventListener('scroll', grid.scrollHandler);
+            }
+        });
+        
         // Create dynamic title with H1 for consistency
         const mainTitle = document.createElement("h1");
         mainTitle.textContent = getDynamicTitle(searchTerm, FILTER_ID, filteredBookmarks.length);
@@ -257,11 +265,18 @@ chrome.bookmarks.getTree(function (bookmarks) {
         gridContainer.appendChild(mainTitle);
         gridContainer.appendChild(grid);
         
-        // Performance optimization: Virtual scrolling for large lists
-        const BATCH_SIZE = 24; // Load 24 items at a time (6 rows of 4)
+        // Performance optimization: Infinite scrolling for large lists
+        const BATCH_SIZE = 100; // Load 100 items at a time
         let currentBatch = 0;
+        let isLoading = false;
+        
+        // Mark grid for cleanup tracking
+        grid.setAttribute('data-scroll-handler', 'true');
         
         function loadBatch() {
+            if (isLoading) return;
+            isLoading = true;
+            
             const start = currentBatch * BATCH_SIZE;
             const end = Math.min(start + BATCH_SIZE, filteredBookmarks.length);
             
@@ -277,23 +292,35 @@ chrome.bookmarks.getTree(function (bookmarks) {
             
             grid.appendChild(fragment);
             currentBatch++;
+            isLoading = false;
+        }
+        
+        // Setup infinite scroll
+        function setupInfiniteScroll() {
+            const scrollHandler = () => {
+                // Check if user has scrolled near the bottom (within 200px)
+                if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200) {
+                    const totalLoaded = currentBatch * BATCH_SIZE;
+                    if (totalLoaded < filteredBookmarks.length && !isLoading) {
+                        loadBatch();
+                    }
+                }
+            };
             
-            // Add load more button if there are more items
-            if (end < filteredBookmarks.length) {
-                const loadMoreBtn = document.createElement("button");
-                loadMoreBtn.textContent = `Load More (${filteredBookmarks.length - end} remaining)`;
-                loadMoreBtn.className = "col-span-full mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors duration-200";
-                loadMoreBtn.addEventListener("click", () => {
-                    loadMoreBtn.remove();
-                    loadBatch();
-                });
-                grid.appendChild(loadMoreBtn);
-            }
+            // Add scroll event listener
+            window.addEventListener('scroll', scrollHandler);
+            
+            // Store reference to remove later if needed
+            grid.scrollHandler = scrollHandler;
         }
         
         // Load initial batch
         if (filteredBookmarks.length > 0) {
             loadBatch();
+            // Only setup infinite scroll if there are more items to load
+            if (filteredBookmarks.length > BATCH_SIZE) {
+                setupInfiniteScroll();
+            }
         }
         
         // Show no results message if needed
