@@ -19,6 +19,39 @@ chrome.bookmarks.getTree(function (bookmarks) {
     let allBookmarks = [];
     let filterOptions = [{ label: "All", value: "all", level: 0, id: 0 }];
 
+    // Bookmark tree cache for performance
+    let bookmarkCache = { data: null, timestamp: 0 };
+    const CACHE_TTL = 5000; // 5 seconds
+
+    // Performance optimization: Debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Performance optimization: Cached bookmark retrieval
+    function getCachedBookmarks() {
+        const now = Date.now();
+        if (bookmarkCache.data && (now - bookmarkCache.timestamp) < CACHE_TTL) {
+            return Promise.resolve(bookmarkCache.data);
+        }
+        
+        return new Promise((resolve) => {
+            chrome.bookmarks.getTree((bookmarks) => {
+                bookmarkCache.data = bookmarks;
+                bookmarkCache.timestamp = now;
+                resolve(bookmarks);
+            });
+        });
+    }
+
     // Initialize theme handlers
     initializeThemeToggle();
     
@@ -68,6 +101,15 @@ chrome.bookmarks.getTree(function (bookmarks) {
         return lastVisitedB - lastVisitedA;
     });
 
+    // Performance optimization: Debounced search handler
+    const performSearch = debounce(function(searchTerm) {
+        if (gridViewEnabled) {
+            showGridView(searchTerm);
+        } else {
+            filterBookmarks(bookmarks, searchTerm);
+        }
+    }, 300); // 300ms debounce delay
+
     // Search functionality
     searchInput.addEventListener("input", function () {
         if (searchInput.value) {
@@ -78,11 +120,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                 searchIcon.src = "assets/icons/search.svg";
             }
             const searchTerm = searchInput.value.trim().toLowerCase();
-            if (gridViewEnabled) {
-                showGridView(searchTerm);
-            } else {
-                filterBookmarks(bookmarks, searchTerm);
-            }
+            performSearch(searchTerm);
         } else {
             clearSearch.classList.add("hidden");
             searchIcon.src = "assets/icons/search.svg";
@@ -215,17 +253,48 @@ chrome.bookmarks.getTree(function (bookmarks) {
         gridContainer.className = "w-fit";
         folderList.appendChild(gridContainer);
         const grid = document.createElement("div");
-        grid.className = "container mx-auto grid my-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 gap-8";
+        grid.className = "container mx-auto grid my-6 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8";
         gridContainer.appendChild(mainTitle);
         gridContainer.appendChild(grid);
         
-        // Display bookmarks in a single 4-column grid
-        filteredBookmarks.forEach((bookmark) => {
-            if (!bookmark.children) {
-                const bookmarkItem = createBookmarkCard(bookmark.bookmark, searchTerm);
-                grid.appendChild(bookmarkItem);
+        // Performance optimization: Virtual scrolling for large lists
+        const BATCH_SIZE = 24; // Load 24 items at a time (6 rows of 4)
+        let currentBatch = 0;
+        
+        function loadBatch() {
+            const start = currentBatch * BATCH_SIZE;
+            const end = Math.min(start + BATCH_SIZE, filteredBookmarks.length);
+            
+            const fragment = document.createDocumentFragment();
+            
+            for (let i = start; i < end; i++) {
+                const bookmark = filteredBookmarks[i];
+                if (!bookmark.children) {
+                    const bookmarkItem = createBookmarkCard(bookmark.bookmark, searchTerm);
+                    fragment.appendChild(bookmarkItem);
+                }
             }
-        });
+            
+            grid.appendChild(fragment);
+            currentBatch++;
+            
+            // Add load more button if there are more items
+            if (end < filteredBookmarks.length) {
+                const loadMoreBtn = document.createElement("button");
+                loadMoreBtn.textContent = `Load More (${filteredBookmarks.length - end} remaining)`;
+                loadMoreBtn.className = "col-span-full mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md transition-colors duration-200";
+                loadMoreBtn.addEventListener("click", () => {
+                    loadMoreBtn.remove();
+                    loadBatch();
+                });
+                grid.appendChild(loadMoreBtn);
+            }
+        }
+        
+        // Load initial batch
+        if (filteredBookmarks.length > 0) {
+            loadBatch();
+        }
         
         // Show no results message if needed
         if (filteredBookmarks.length === 0) {
@@ -529,7 +598,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
         getThumbnailUrl(bookmarkNode.url, function (thumbnailUrl) {
             const buttonText = thumbnailUrl.startsWith("https://www.google.com/s2/favicons?domain=") 
                 ? "Capture Thumbnail" 
-                : "Refresh Thumbnail";
+                : "Recapture";
 
             const captureButton = createIconButton(
                 buttonText,
@@ -652,7 +721,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                     showGridView(searchTerm);
                 } else {
                     // For folder view, get fresh bookmark tree
-                    chrome.bookmarks.getTree(function(newBookmarks) {
+                    getCachedBookmarks().then(function(newBookmarks) {
                         // Reset the folder list
                         folderList.innerHTML = '';
                         filterBookmarks(newBookmarks, searchTerm);
@@ -667,14 +736,25 @@ chrome.bookmarks.getTree(function (bookmarks) {
         if (bookmarks && bookmarks.length > 0) {
             bookmarks.forEach(function (bookmark) {
                 if (bookmark.children) {
-                    if (bookmark.title)
+                    if (bookmark.title) {
                         filterOptions.push({
                             label: `${level > 0 ? "-".repeat(level - 1) + " " : ""}` + bookmark.title,
                             value: bookmark.id,
                             level: level,
                             id: id + "-" + bookmark.id + "-",
                         });
+                    }
                     populateFilterOptions(bookmark.children, level + 1, id + "-" + bookmark.id);
+                } else {
+                    // Also add leaf bookmark parent IDs to prevent missing options
+                    if (bookmark.parentId && !filterOptions.find(opt => opt.value === bookmark.parentId)) {
+                        filterOptions.push({
+                            label: `Unknown Folder (${bookmark.parentId})`,
+                            value: bookmark.parentId,
+                            level: 0,
+                            id: `unknown-${bookmark.parentId}`,
+                        });
+                    }
                 }
             });
         }
@@ -797,8 +877,9 @@ chrome.bookmarks.getTree(function (bookmarks) {
         // Get current search term
         const searchTerm = searchInput.value.trim().toLowerCase();
         
-        // Refresh bookmarks from Chrome API
-        chrome.bookmarks.getTree(function(newBookmarks) {
+        // Clear cache to ensure fresh data and refresh bookmarks from Chrome API
+        bookmarkCache = { data: null, timestamp: 0 };
+        getCachedBookmarks().then(function(newBookmarks) {
             // Clear and repopulate allBookmarks
             allBookmarks = [];
             for (const node of newBookmarks[0].children) {
@@ -825,7 +906,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
     function computeId(id) {
         const option = filterOptions.find((option) => option.value === id);
         if (!option) {
-            console.warn(`No filter option found for bookmark ID: ${id}`);
+            // Silently return fallback ID for missing options to prevent console spam
             return `fallback-${id}`;
         }
         return option.id;
@@ -903,7 +984,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                 console.error("Error computing ID for noFolderList:", error);
                 noFolderList.id = `fallback-nofolder-${bookmarkNode.id}`;
             }
-            noFolderList.className = "no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full";
+            noFolderList.className = "no-folder-list container my-6 gap-x-8 gap-y-6 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full";
 
             let folders = [];
             for (const child of bookmarkNode.children) {
@@ -972,7 +1053,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                     folderList.appendChild(mainTitle);
 
                     const bookmarksGrid = document.createElement("div");
-                    bookmarksGrid.className = "no-folder-list container my-6 gap-x-8 gap-y-6 grid lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 w-full";
+                    bookmarksGrid.className = "no-folder-list container my-6 gap-x-8 gap-y-6 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full";
                     bookmarksGrid.id = `no-folder-list-${FILTER_ID}`;
                     let hasDirectBookmarks = false;
                     
