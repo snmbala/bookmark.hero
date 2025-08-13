@@ -6,9 +6,7 @@
 
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<link rel="stylesheet" href="../css/styles.css" />
-  <script type="module" crossorigin src="/src/bookmarksHtml.js"></script>
-  <link rel="modulepreload" crossorigin href="/src/bookmarks.js">
+	<link rel="stylesheet" href="css/styles.css" />
 </head>
 
 <body class="bg-white dark:bg-zinc-950">
@@ -39,7 +37,7 @@
 							class="flex-between w-full h-full py-1.5 px-3 border-[1.5px] cursor-pointer appearance-none bg-transparent bg-no-repeat input">
 							<!-- Options -->
 						</select>
-						<img id="folder-dropdown-arrow" src="data:image/svg+xml,%3csvg%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%20%3e%3cpath%20d='M6%209L12%2015L18%209'%20stroke='%23A8A29E'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'%20/%3e%3c/svg%3e" alt="Chevron down svg"
+						<img id="folder-dropdown-arrow" src="../assets/icons/chevron-down.svg" alt="Chevron down svg"
 							class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
 					</div>
 				</div>
@@ -61,17 +59,17 @@
 		<div class="flex-center container h-24 text-sm">
 			<div class="flex-center w-full h-10 px-auto gap-4 bg-transparent">
 				<div class="flex-start gap-2 px-3 w-[780px] h-full input">
-					<img src="data:image/svg+xml,%3csvg%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M11%2019C15.4183%2019%2019%2015.4183%2019%2011C19%206.58172%2015.4183%203%2011%203C6.58172%203%203%206.58172%203%2011C3%2015.4183%206.58172%2019%2011%2019Z'%20stroke='%23A8A29E'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M21%2021L16.65%2016.65'%20stroke='%23A8A29E'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/svg%3e" alt="Search svg" id="search-icon" />
+					<img src="../assets/icons/search.svg" alt="Search svg" id="search-icon" />
 
 					<input type="text" class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400" id="search-input" placeholder="Search Bookmarks..." autofocus />
-					<img src="data:image/svg+xml,%3csvg%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cg%20clip-path='url(%23clip0_24_1172)'%3e%3cpath%20d='M18.75%205.25L5.25%2018.75'%20stroke='%23607FFF'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M18.75%2018.75L5.25%205.25'%20stroke='%23607FFF'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/g%3e%3cdefs%3e%3cclipPath%20id='clip0_24_1172'%3e%3crect%20width='24'%20height='24'%20fill='white'/%3e%3c/clipPath%3e%3c/defs%3e%3c/svg%3e" alt="Close button" id="clear-search" class="hidden cursor-pointer" />
+					<img src="../assets/icons/x.svg" alt="Close button" id="clear-search" class="hidden cursor-pointer" />
 				</div>
 
 				<div class="rounded-md w-[180px] h-full relative">
 					<select id="filter"
 						class="flex-between w-full h-full pl-3 pr-10 cursor-pointer appearance-none bg-transparent bg-no-repeat gap-2 px-3 input"></select>
-					<img id="filter-dropdown-arrow" src="data:image/svg+xml,%3csvg%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%20%3e%3cpath%20d='M6%209L12%2015L18%209'%20stroke='%23A8A29E'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'%20/%3e%3c/svg%3e" alt="Chevron down svg" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
-					<img id="filter-clear" src="data:image/svg+xml,%3csvg%20width='24'%20height='24'%20viewBox='0%200%2024%2024'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cg%20clip-path='url(%23clip0_24_1172)'%3e%3cpath%20d='M18.75%205.25L5.25%2018.75'%20stroke='%23607FFF'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3cpath%20d='M18.75%2018.75L5.25%205.25'%20stroke='%23607FFF'%20stroke-width='1.5'%20stroke-linecap='round'%20stroke-linejoin='round'/%3e%3c/g%3e%3cdefs%3e%3cclipPath%20id='clip0_24_1172'%3e%3crect%20width='24'%20height='24'%20fill='white'/%3e%3c/clipPath%3e%3c/defs%3e%3c/svg%3e" alt="Clear filter" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1 cursor-pointer hidden" />
+					<img id="filter-dropdown-arrow" src="../assets/icons/chevron-down.svg" alt="Chevron down svg" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1" />
+					<img id="filter-clear" src="../assets/icons/x.svg" alt="Clear filter" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1 cursor-pointer hidden" />
 				</div>
 
 				<div class="flex">
@@ -167,6 +165,7 @@
 		</div>
 	</footer>
 
+	<script type="module" src="main.js"></script>
 </body>
 
 </html>

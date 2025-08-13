@@ -1,4 +1,4 @@
-// --- Settings icon color update logic ---
+// Function to update settings icon color based on theme
 function updateSettingsIconColor() {
 	const html = document.documentElement;
 	const settingsIcon = document.getElementById('settings-icon-svg');

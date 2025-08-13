@@ -4,7 +4,7 @@ module.exports = {
 	darkMode: 'class', // Enable class-based dark mode
 	content: [
 		"./src/**/*.{html,js}",
-		"./css/**/*.{css}",
+	"./css/**/*.css",
 		"./*.{html,js}"
 	],
 	theme: {

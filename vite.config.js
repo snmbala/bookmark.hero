@@ -6,23 +6,37 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: 'manifest.json', dest: '.' },
-        { src: 'assets/*', dest: 'assets' }
+        { src: 'assets/*', dest: 'assets' },
+        { src: 'src/main.html', dest: '.' }
       ]
     })
   ],
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
         background: 'src/background.js',
-        bookmarks: 'src/bookmarks.js',
-        bookmarksHtml: 'src/bookmarks.html'
+        main: 'src/main.js',
+        styles: 'css/input.css'
       },
       output: {
-        entryFileNames: 'src/[name].js',
-        chunkFileNames: 'src/[name].js',
-        assetFileNames: 'assets/[name][extname]'
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'css/[name][extname]';
+          }
+          return 'assets/[name][extname]';
+        }
       }
     }
   }

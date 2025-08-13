@@ -7,7 +7,7 @@
       }
    },
    "background": {
-      "service_worker": "src/background.js"
+      "service_worker": "background.js"
    },
    "description": "Capture your bookmark with screenshot. Quick search your bookmark, auto-tag and much more..",
    "host_permissions": [ "\u003Call_urls>" ],

@@ -90,8 +90,8 @@ function compressImage(dataUrl, targetSizeKB, callback) {
 }
 
 chrome.action.onClicked.addListener(function (tab) {
-	// Create a new tab with the bookmarks page
-	chrome.tabs.create({ url: chrome.runtime.getURL("src/bookmarks.html") });
+	// Create a new tab with the main page
+	chrome.tabs.create({ url: chrome.runtime.getURL("main.html") });
 });
 
 chrome.bookmarks.onCreated.addListener(function (bookmark, bookmarkInfo) {
