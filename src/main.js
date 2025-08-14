@@ -143,16 +143,6 @@ chrome.bookmarks.getTree(function (bookmarks) {
         }
     });
 
-    document.addEventListener("keydown", function (event) {
-        if (event.key === "/" && document.activeElement !== searchInput) {
-            event.preventDefault();
-            searchInput.focus();
-        }
-        if (event.key === "Escape" && document.activeElement === searchInput) {
-            searchInput.blur();
-        }
-    });
-
     // Toggle view functionality
     function toggleView() {
         gridViewEnabled = !gridViewEnabled;

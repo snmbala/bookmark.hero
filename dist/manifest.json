@@ -18,7 +18,7 @@
    },
    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAg4j0g3j6ovigyoVOmfH1/hBGboOl7TdvVSdo8qT1CDITRbTvALHohhLR5Ih8jP8c0DBTP0CJYv2nToatQtXLAn8N3xT85bDfO58fGUpf1LWVXmnUU2phgIQFMfIFOQbq0kjJGcgLC1mH7u560Q1UxzTSsiPemSQdE8JMvAp1bh3hu+D2knoXBMT4TyP9oZSU3Fjm35uRTQ5fD4IKDrxaTrpoD014joj2eF7VcGH16n95XrpwO3l9Q1CYPHNkPTf13pVp1AWRRx4h99er8Gn6h0caz1GURgMor2SR4X4Iz8uiNBTTfKUeBTbb0lkqNGI7RCsCxU+RXETiA4cQqMg/ZwIDAQAB",
    "manifest_version": 3,
-   "name": "Bookmark Hero",
+   "name": "Bookmark hero",
    "permissions": [ "bookmarks", "tabs", "unlimitedStorage", "storage", "activeTab" ],
    "update_url": "https://clients2.google.com/service/update2/crx",
    "version": "1.4.7.1"
