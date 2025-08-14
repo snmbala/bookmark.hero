@@ -72,8 +72,15 @@
 	display: none; /* Initially hidden */
   }
   
-  .card:hover .close-button {
-	display: block; /* Visible on hover */
+  .card:hover .close-button,
+  .card:focus .close-button,
+  .card:focus-within .close-button,
+  .card.menu-open .close-button {
+	display: block; /* Visible on hover, focus, or when menu is open */
+  }
+
+  .card:focus {
+	@apply outline-none ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-zinc-800;
   }
 
   .input {
@@ -94,4 +101,25 @@
 
 .link{
 	@apply text-sm text-indigo-600 dark:text-indigo-300 hover:underline;
+}
+
+/* Focus styles for headings in keyboard navigation */
+h1[tabindex]:focus, h2[tabindex]:focus, h3[tabindex]:focus {
+	@apply outline-none ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-zinc-800 bg-indigo-50 dark:bg-indigo-950 rounded-md px-2 py-1;
+}
+
+/* Ensure headings are focusable with proper cursor */
+h1[tabindex], h2[tabindex], h3[tabindex] {
+	@apply cursor-pointer;
+}
+
+/* Focus styles for settings button */
+#settings-btn:focus {
+	@apply outline-none ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-zinc-800 bg-indigo-50 dark:bg-indigo-950 rounded-full p-2;
+}
+
+/* Screen reader only class */
+.sr-only {
+	@apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+	clip: rect(0, 0, 0, 0);
 }

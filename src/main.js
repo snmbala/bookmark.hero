@@ -275,7 +275,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
             for (let i = start; i < end; i++) {
                 const bookmark = filteredBookmarks[i];
                 if (!bookmark.children) {
-                    const bookmarkItem = createBookmarkCard(bookmark.bookmark, searchTerm);
+                    const bookmarkItem = createBookmarkCard(bookmark.bookmark, searchTerm, bookmark.folder);
                     fragment.appendChild(bookmarkItem);
                 }
             }
@@ -325,12 +325,16 @@ chrome.bookmarks.getTree(function (bookmarks) {
     }
 
     // Create bookmark card function
-    function createBookmarkCard(bookmarkNode, searchTerm) {
+    function createBookmarkCard(bookmarkNode, searchTerm, folderName = null) {
         const card = document.createElement("div");
         card.className = "relative card min-w-60 flex flex-col border-[1.5px] bg-white border-zinc-200; dark:border-zinc-700 hover:border-indigo-500 hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-700 rounded-md overflow-hidden";
+        
+        // Add parent ID as data attribute for keyboard navigation
+        card.setAttribute('data-parent-id', bookmarkNode.parentId || '1');
 
         const closeButton = document.createElement("button");
         closeButton.className = "absolute top-0 right-0 m-1 p-1 bg-zinc-500 hover:bg-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-800 rounded-full border-none cursor-pointer close-button";
+        closeButton.setAttribute('aria-label', 'More actions for ' + bookmarkNode.title);
         closeButton.addEventListener("click", function (event) {
             event.stopPropagation();
             showPopupMenu(event, bookmarkNode);
@@ -476,6 +480,27 @@ chrome.bookmarks.getTree(function (bookmarks) {
         }
 
         card.appendChild(cardDetailsSection);
+
+        // Add screen reader support for bookmark cards
+        const bookmarkTitle = bookmarkNode.title || "Untitled";
+        let ariaLabel = bookmarkTitle;
+        
+        // Check if there's a tag (folder name) and include it in the aria-label
+        if (folderName && folderName.trim()) {
+            ariaLabel = `${folderName} - ${bookmarkTitle}`;
+        }
+        
+        // Set aria-label for screen readers
+        card.setAttribute('aria-label', ariaLabel);
+        card.setAttribute('role', 'link');
+        card.setAttribute('aria-describedby', `bookmark-url-${bookmarkNode.id}`);
+        
+        // Add hidden description for screen readers with URL
+        const urlDescription = document.createElement('span');
+        urlDescription.id = `bookmark-url-${bookmarkNode.id}`;
+        urlDescription.className = 'sr-only';
+        urlDescription.textContent = `URL: ${bookmarkNode.url}`;
+        card.appendChild(urlDescription);
 
         return card;
     }
@@ -694,6 +719,9 @@ chrome.bookmarks.getTree(function (bookmarks) {
         // Prevent closing the popup menu when clicking on the same button again
         event.stopPropagation();
     }
+
+    // Make showPopupMenu available globally for keyboard shortcuts
+    window.showPopupMenu = showPopupMenu;
 
     function openEditModal(bookmarkNode) {
         const editModal = document.getElementById("edit-modal");
@@ -1021,7 +1049,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                         containsSearchTerm(child.title, searchTerm) ||
                         containsSearchTerm(child.url, searchTerm);
                     if (matchesSearch) {
-                        const bookmarkListItem = createBookmarkCard(child, searchTerm);
+                        const bookmarkListItem = createBookmarkCard(child, searchTerm, bookmarkNode.title);
                         noFolderList.appendChild(bookmarkListItem);
                     }
                 }
@@ -1081,7 +1109,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                                     containsSearchTerm(child.title, searchTerm) ||
                                     containsSearchTerm(child.url, searchTerm);
                                 if (matchesSearch) {
-                                    const bookmarkListItem = createBookmarkCard(child, searchTerm);
+                                    const bookmarkListItem = createBookmarkCard(child, searchTerm, bookmarkNode.title);
                                     bookmarksGrid.appendChild(bookmarkListItem);
                                     hasDirectBookmarks = true;
                                 }

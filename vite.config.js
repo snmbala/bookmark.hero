@@ -8,7 +8,7 @@ export default defineConfig({
         { src: 'manifest.json', dest: '.' },
         { src: 'assets/*', dest: 'assets' },
         { src: 'src/main.html', dest: '.' },
-        { src: 'src/keyboard-shortcuts.js', dest: '.' }
+        { src: 'src/modules/keyboard-shortcuts.js', dest: 'modules' }
       ]
     })
   ],
