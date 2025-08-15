@@ -2,6 +2,7 @@
 import { initializeThemeToggle, updateSettingsIconColor } from './modules/theme.js';
 import { populateFilterDropdown, updateClearFilterButton } from './modules/filter.js';
 import { captureScreenshot, getThumbnailUrl } from './modules/thumbnail.js';
+import { handleScreenshotCapture } from './modules/captureScreenshot.js';
 
 chrome.bookmarks.getTree(function (bookmarks) {
     const folderList = document.getElementById("folder-list");
@@ -23,10 +24,10 @@ chrome.bookmarks.getTree(function (bookmarks) {
     let bookmarkCache = { data: null, timestamp: 0 };
     const CACHE_TTL = 5000; // 5 seconds
 
-    // Performance optimization: Debounce function
+    // Performance optimization: Debounce function with cancellation support
     function debounce(func, wait) {
         let timeout;
-        return function executedFunction(...args) {
+        const executedFunction = function(...args) {
             const later = () => {
                 clearTimeout(timeout);
                 func(...args);
@@ -34,6 +35,13 @@ chrome.bookmarks.getTree(function (bookmarks) {
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
+        
+        // Add cancel method to clear pending execution
+        executedFunction.cancel = function() {
+            clearTimeout(timeout);
+        };
+        
+        return executedFunction;
     }
 
     // Performance optimization: Cached bookmark retrieval
@@ -133,6 +141,8 @@ chrome.bookmarks.getTree(function (bookmarks) {
             const searchTerm = searchInput.value.trim().toLowerCase();
             performSearch(searchTerm);
         } else {
+            // Cancel any pending debounced search when input is cleared
+            performSearch.cancel && performSearch.cancel();
             clearSearch.classList.add("hidden");
             searchIcon.src = "assets/icons/search.svg";
             if (gridViewEnabled) {
@@ -145,6 +155,8 @@ chrome.bookmarks.getTree(function (bookmarks) {
 
     clearSearch.addEventListener("click", function () {
         searchInput.value = "";
+        // Cancel any pending debounced search when manually clearing
+        performSearch.cancel && performSearch.cancel();
         clearSearch.classList.add("hidden");
         searchIcon.src = "assets/icons/search.svg";
         if (gridViewEnabled) {
@@ -343,7 +355,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
     // Create bookmark card function
     function createBookmarkCard(bookmarkNode, searchTerm, folderName = null) {
         const card = document.createElement("div");
-        card.className = "relative card min-w-60 flex flex-col border-[1.5px] bg-white border-zinc-200; dark:border-zinc-700 hover:border-indigo-500 hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-700 rounded-md overflow-hidden";
+        card.className = "card";
         card.setAttribute('tabindex', '0');
         // Add parent ID and bookmark ID as data attributes for keyboard navigation
         card.setAttribute('data-parent-id', bookmarkNode.parentId || '1');
@@ -415,14 +427,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                 captureButton.id = "capture-" + bookmarkNode.url;
                 captureButton.addEventListener("click", function (event) {
                     event.preventDefault();
-                    captureScreenshot(bookmarkNode.url, bookmarkNode.title, function(url, newThumbnailUrl) {
-                        // Update the thumbnail image directly
-                        thumbnailImg.src = newThumbnailUrl;
-                        // Remove the capture button since we now have a thumbnail
-                        if (captureButton.parentNode) {
-                            captureButton.parentNode.removeChild(captureButton);
-                        }
-                    });
+                    window.handleScreenshotCapture(bookmarkNode.url, bookmarkNode.title, null, captureButton);
                 });
                 cardThumbnailSection.appendChild(captureButton);
             }
@@ -693,24 +698,7 @@ chrome.bookmarks.getTree(function (bookmarks) {
                 null,
                 function (event) {
                     event.preventDefault();
-                    captureScreenshot(bookmarkNode.url, bookmarkNode.title, function(url, newThumbnailUrl) {
-                        // Find and update the thumbnail image for this bookmark
-                        const bookmarkCards = document.querySelectorAll('.card');
-                        bookmarkCards.forEach(card => {
-                            const cardLink = card.querySelector('a[href="' + bookmarkNode.url + '"]');
-                            if (cardLink) {
-                                const thumbnailImg = card.querySelector('img[alt="' + bookmarkNode.url + '"]');
-                                if (thumbnailImg) {
-                                    thumbnailImg.src = newThumbnailUrl;
-                                }
-                                // Remove capture button if it exists
-                                const captureBtn = card.querySelector('#capture-' + bookmarkNode.url);
-                                if (captureBtn && captureBtn.parentNode) {
-                                    captureBtn.parentNode.removeChild(captureBtn);
-                                }
-                            }
-                        });
-                    });
+                    window.handleScreenshotCapture(bookmarkNode.url, bookmarkNode.title);
                     closePopupMenu();
                 }
             );
@@ -771,20 +759,37 @@ chrome.bookmarks.getTree(function (bookmarks) {
     window.closeEditModal = closeEditModal;
     window.deleteBookmark = deleteBookmark;
     window.captureScreenshot = captureScreenshot;
+    window.handleScreenshotCapture = handleScreenshotCapture;
     
     // Function to get bookmark data from a card element
     window.getBookmarkFromCard = function(cardElement) {
         const link = cardElement.querySelector('a');
         if (!link || !link.href) return null;
         
-        // Get title from the h3 element or fallback to aria-label
+        // Get title from the bookmark title link element (inside the details section)
         let title = '';
-        const titleElement = cardElement.querySelector('h3');
-        if (titleElement) {
-            title = titleElement.textContent.trim();
-        } else {
-            // Fallback to aria-label which should contain the title
-            title = cardElement.getAttribute('aria-label') || '';
+        
+        // Look for the bookmark title link specifically in the card details section
+        const cardDetailsSection = cardElement.querySelector('.flex-center.h-24.flex-col');
+        if (cardDetailsSection) {
+            const bookmarkLinkElement = cardDetailsSection.querySelector('a[target="_blank"]');
+            if (bookmarkLinkElement) {
+                // Get just the text content, stripping any HTML highlighting
+                title = bookmarkLinkElement.textContent.trim();
+            }
+        }
+        
+        // If we still don't have a title, try the aria-label fallback
+        if (!title) {
+            const ariaLabel = cardElement.getAttribute('aria-label') || '';
+            if (ariaLabel.includes(' - ')) {
+                // If aria-label contains folder name, extract just the title part
+                // Format: "FolderName - BookmarkTitle"
+                title = ariaLabel.split(' - ').slice(1).join(' - ').trim();
+            } else {
+                // No folder name in aria-label, use it as is
+                title = ariaLabel.trim();
+            }
         }
         
         const parentId = cardElement.getAttribute('data-parent-id');
@@ -794,14 +799,14 @@ chrome.bookmarks.getTree(function (bookmarks) {
         console.log('🔍 Extracting bookmark data from card:');
         console.log('  ID:', bookmarkId);
         console.log('  Title:', title);
-        console.log('  URL:', bookmarkUrl || link.href);
+        console.log('  URL:', bookmarkUrl);
         console.log('  Parent ID:', parentId);
         
         return {
-            id: bookmarkId, // Use the actual bookmark ID
+            id: bookmarkId,
             title: title,
-            url: bookmarkUrl || link.href,
-            parentId: parentId || '1'
+            url: bookmarkUrl,
+            parentId: parentId
         };
     };
 
@@ -1500,32 +1505,15 @@ function triggerDeleteAction(cardElement) {
 function triggerCaptureAction(cardElement) {
     console.log('📸 Triggering capture action for card:', cardElement);
     
-    if (!window.getBookmarkFromCard || !window.captureScreenshot) {
+    if (!window.getBookmarkFromCard || !window.handleScreenshotCapture) {
         console.error('Required functions not available');
         return;
     }
     
     const bookmarkData = window.getBookmarkFromCard(cardElement);
     if (bookmarkData) {
-        console.log('✅ Capturing screenshot for:', bookmarkData.title, 'URL:', bookmarkData.url);
-        
-        // Call captureScreenshot directly with the bookmark data
-        window.captureScreenshot(bookmarkData.url, bookmarkData.title, function(url, newThumbnailUrl) {
-            console.log('📸 Screenshot capture completed for:', bookmarkData.title);
-            
-            // Find and update the thumbnail image for this bookmark
-            const bookmarkCards = document.querySelectorAll('.card');
-            bookmarkCards.forEach(card => {
-                const cardLink = card.querySelector('a[href="' + bookmarkData.url + '"]');
-                if (cardLink) {
-                    const thumbnailImg = card.querySelector('img[alt="' + bookmarkData.url + '"]');
-                    if (thumbnailImg) {
-                        thumbnailImg.src = newThumbnailUrl;
-                        console.log('🖼️ Updated thumbnail for:', bookmarkData.title);
-                    }
-                }
-            });
-        });
+        console.log('✅ Using centralized capture for:', bookmarkData.title, 'URL:', bookmarkData.url);
+        window.handleScreenshotCapture(bookmarkData.url, bookmarkData.title, cardElement);
     } else {
         console.error('❌ Could not extract bookmark data from card');
     }
@@ -1842,6 +1830,10 @@ function handleTabNavigation(event) {
     // If focusing a bookmark card, update current index for arrow navigation
     if (nextElement.classList.contains('card')) {
         currentBookmarkIndex = parseInt(nextElement.getAttribute('data-bookmark-index'));
+        highlightFocusedCard(nextElement);
+    } else {
+        // If focusing a non-card element, clear any manual highlights from cards
+        highlightFocusedCard(null);
     }
     
     nextElement.focus();

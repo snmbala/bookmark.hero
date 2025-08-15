@@ -68,6 +68,10 @@
 	}
   }
 
+  .card {
+	@apply relative min-w-60 flex flex-col border-[1.5px] bg-white border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-700 rounded-md overflow-hidden;
+  }
+
   .card .close-button {
 	display: none; /* Initially hidden */
   }
@@ -79,6 +83,7 @@
 	display: block; /* Visible on hover, focus, or when menu is open */
   }
 
+  .card:hover,
   .card:focus {
 	@apply outline-none ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-zinc-800;
   }
