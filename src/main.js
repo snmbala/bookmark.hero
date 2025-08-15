@@ -328,9 +328,36 @@ chrome.bookmarks.getTree(function (bookmarks) {
     function createBookmarkCard(bookmarkNode, searchTerm, folderName = null) {
         const card = document.createElement("div");
         card.className = "relative card min-w-60 flex flex-col border-[1.5px] bg-white border-zinc-200; dark:border-zinc-700 hover:border-indigo-500 hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-700 rounded-md overflow-hidden";
-        
+        card.setAttribute('tabindex', '0');
         // Add parent ID as data attribute for keyboard navigation
         card.setAttribute('data-parent-id', bookmarkNode.parentId || '1');
+
+        // Keyboard navigation for card
+        card.addEventListener('keydown', function(event) {
+            // Only handle if card is focused
+            if (document.activeElement !== card) return;
+            if (event.key === 'Enter') {
+                // Open bookmark URL in new tab
+                event.preventDefault();
+                if (bookmarkNode.url) {
+                    window.open(bookmarkNode.url, '_blank');
+                }
+            } else if (event.key.toLowerCase() === 'm') {
+                event.preventDefault();
+                // Find the closeButton inside the card and trigger click to open/close menu
+                const closeButton = card.querySelector('.close-button');
+                if (closeButton) {
+                    closeButton.click();
+                    // After closing, return focus to card
+                    setTimeout(() => {
+                        card.focus();
+                    }, 200);
+                }
+            } else if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+                // Let arrow navigation be handled by keyboard-shortcuts.js
+                // Do nothing here
+            }
+        });
 
         const closeButton = document.createElement("button");
         closeButton.className = "absolute top-0 right-0 m-1 p-1 bg-zinc-500 hover:bg-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-800 rounded-full border-none cursor-pointer close-button";
@@ -720,8 +747,41 @@ chrome.bookmarks.getTree(function (bookmarks) {
         event.stopPropagation();
     }
 
-    // Make showPopupMenu available globally for keyboard shortcuts
+    // Make functions available globally for keyboard shortcuts
     window.showPopupMenu = showPopupMenu;
+    window.openEditModal = openEditModal;
+    window.deleteBookmark = deleteBookmark;
+    window.captureScreenshot = captureScreenshot;
+    
+    // Function to get bookmark data from a card element
+    window.getBookmarkFromCard = function(cardElement) {
+        const link = cardElement.querySelector('a');
+        if (!link || !link.href) return null;
+        
+        // Get title from the h3 element or fallback to aria-label
+        let title = '';
+        const titleElement = cardElement.querySelector('h3');
+        if (titleElement) {
+            title = titleElement.textContent.trim();
+        } else {
+            // Fallback to aria-label which should contain the title
+            title = cardElement.getAttribute('aria-label') || '';
+        }
+        
+        const parentId = cardElement.getAttribute('data-parent-id');
+        
+        console.log('🔍 Extracting bookmark data from card:');
+        console.log('  Title:', title);
+        console.log('  URL:', link.href);
+        console.log('  Parent ID:', parentId);
+        
+        return {
+            id: link.href, // Using href as ID for now
+            title: title,
+            url: link.href,
+            parentId: parentId || '1'
+        };
+    };
 
     function openEditModal(bookmarkNode) {
         const editModal = document.getElementById("edit-modal");

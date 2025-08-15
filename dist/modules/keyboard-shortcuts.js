@@ -1,6 +1,109 @@
 // Keyboard shortcuts for Bookmark Hero
 console.log('Keyboard shortcuts script loaded!');
 
+// Action functions for direct keyboard shortcuts
+function triggerEditAction(cardElement) {
+    console.log('🔧 Triggering edit action for card:', cardElement);
+    
+    if (!window.getBookmarkFromCard || !window.openEditModal) {
+        console.error('Required functions not available');
+        return;
+    }
+    
+    const bookmarkData = window.getBookmarkFromCard(cardElement);
+    console.log('📋 Extracted bookmark data:', bookmarkData);
+    
+    if (bookmarkData) {
+        console.log('✅ Opening edit modal for:', bookmarkData.title);
+        console.log('📝 Full bookmark data being passed:', {
+            id: bookmarkData.id,
+            title: bookmarkData.title,
+            url: bookmarkData.url,
+            parentId: bookmarkData.parentId
+        });
+        window.openEditModal(bookmarkData);
+    } else {
+        console.error('❌ Could not extract bookmark data from card');
+        console.log('Card HTML:', cardElement.outerHTML);
+    }
+}
+
+function triggerDeleteAction(cardElement) {
+    console.log('🗑️ Triggering delete action for card:', cardElement);
+    
+    if (!window.getBookmarkFromCard || !window.deleteBookmark) {
+        console.error('Required functions not available');
+        return;
+    }
+    
+    const bookmarkData = window.getBookmarkFromCard(cardElement);
+    if (bookmarkData && confirm(`Are you sure you want to delete "${bookmarkData.title}"?`)) {
+        console.log('Deleting bookmark:', bookmarkData.title);
+        
+        // Find next card to focus on after deletion
+        const allCards = Array.from(document.querySelectorAll('.card'));
+        const currentIndex = allCards.indexOf(cardElement);
+        const nextCard = allCards[currentIndex + 1] || allCards[currentIndex - 1];
+        
+        window.deleteBookmark(bookmarkData);
+        
+        // Focus next card after a short delay
+        setTimeout(() => {
+            if (nextCard && document.contains(nextCard)) {
+                nextCard.focus();
+                console.log('Focused next card after deletion');
+            }
+        }, 100);
+    }
+}
+
+function triggerCaptureAction(cardElement) {
+    console.log('📸 Triggering capture action for card:', cardElement);
+    
+    if (!window.getBookmarkFromCard || !window.captureScreenshot) {
+        console.error('Required functions not available');
+        return;
+    }
+    
+    const bookmarkData = window.getBookmarkFromCard(cardElement);
+    if (bookmarkData) {
+        console.log('Capturing screenshot for:', bookmarkData.title, 'URL:', bookmarkData.url);
+        window.captureScreenshot(bookmarkData.url, bookmarkData.title, function() {
+            console.log('Screenshot capture completed');
+            // Optionally refresh the card or show some feedback
+        });
+    } else {
+        console.error('Could not extract bookmark data from card');
+    }
+}
+
+function triggerOpenUrl(cardElement) {
+    console.log('🔗 Triggering open URL for card:', cardElement);
+    const link = cardElement.querySelector('a');
+    if (link && link.href) {
+        console.log('Opening link:', link.href);
+        window.open(link.href, '_blank');
+    } else {
+        console.log('No link found in card');
+    }
+}
+
+// Function to improve focus visibility
+function highlightFocusedCard(cardElement) {
+    // Remove highlight from all cards
+    document.querySelectorAll('.card').forEach(card => {
+        card.style.outline = '';
+        card.style.boxShadow = '';
+    });
+    
+    // Highlight the focused card
+    if (cardElement) {
+        cardElement.style.outline = '3px solid #3b82f6';
+        cardElement.style.boxShadow = '0 0 0 1px #3b82f6';
+        console.log('🎯 Highlighted focused card:', cardElement.querySelector('h3')?.textContent || 'Unknown title');
+    }
+}
+
 // Wait for DOM and main.js to be ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Keyboard shortcuts: DOM loaded');
@@ -43,57 +146,73 @@ function updateBookmarkCards() {
 }
 
 // Function to open bookmark card menu programmatically
-    function openBookmarkCardMenu(bookmarkCard) {
-        console.log('=== OPENING MENU DEBUG ===');
-        console.log('Opening menu for bookmark card:', bookmarkCard);
-        console.log('Card classes:', bookmarkCard.className);
+// Function to open bookmark card menu
+function openBookmarkCardMenu(bookmarkCard) {
+    console.log('=== OPENING MENU DEBUG ===');
+    console.log('Opening menu for bookmark card:', bookmarkCard);
+    console.log('Card classes:', bookmarkCard.className);
+    
+    try {
+        // Find the more button (three dots) - it's typically an img or button with more icon
+        const moreButton = bookmarkCard.querySelector('img[src*="more"], button[src*="more"], img[alt*="more"], [class*="more"]');
         
-        // Find the bookmark node data
-        const bookmarkLink = bookmarkCard.querySelector('a');
-        const bookmarkTitle = bookmarkCard.querySelector('h3');
-        
-        if (!bookmarkLink || !bookmarkTitle) {
-            console.log('❌ Could not find bookmark link or title in card');
-            console.log('Link found:', !!bookmarkLink);
-            console.log('Title found:', !!bookmarkTitle);
-            return;
-        }
-        
-        const bookmarkUrl = bookmarkLink.href;
-        const bookmarkTitleText = bookmarkTitle.textContent;
-        
-        console.log('✓ Found bookmark data:', { url: bookmarkUrl, title: bookmarkTitleText });
-        
-        // Find the more button (three dots) in this card
-        const moreButton = bookmarkCard.querySelector('.close-button');
         if (!moreButton) {
-            console.log('❌ More button (.close-button) not found in bookmark card');
-            console.log('Available buttons in card:', bookmarkCard.querySelectorAll('button').length);
+            // Try alternative selectors for the more button
+            const possibleButtons = bookmarkCard.querySelectorAll('img, button');
+            console.log('Available buttons/images in card:', possibleButtons.length);
+            
+            // Look for the more button by checking src or other attributes
+            for (let btn of possibleButtons) {
+                console.log('Button/Image:', btn, 'src:', btn.src, 'alt:', btn.alt, 'class:', btn.className);
+                if (btn.src && (btn.src.includes('more') || btn.src.includes('menu'))) {
+                    console.log('✓ Found more button by src, triggering click event...');
+                    
+                    // Create and dispatch click event
+                    const clickEvent = new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    });
+                    btn.dispatchEvent(clickEvent);
+                    
+                    console.log('✓ More button clicked successfully');
+                    
+                    // Wait for menu to be created and set up navigation
+                    setTimeout(() => {
+                        setupBookmarkMenuNavigation();
+                    }, 100);
+                    return;
+                }
+            }
+            console.log('❌ More button not found');
             return;
         }
         
         console.log('✓ Found more button, triggering click event...');
         
-        // Instead of calling showPopupMenu directly, just click the button
-        // This ensures we use exactly the same flow as the mouse click
-        try {
-            moreButton.click();
-            console.log('✓ More button clicked successfully');
-            
-            // After menu is created, set up keyboard navigation
-            setTimeout(() => {
-                setupMenuKeyboardNavigation();
-            }, 10);
-        } catch (error) {
-            console.log('❌ Error clicking more button:', error);
-        }
+        // Create and dispatch click event
+        const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        });
+        moreButton.dispatchEvent(clickEvent);
+        
+        console.log('✓ More button clicked successfully');
+        
+        // Wait for menu to be created and set up navigation
+        setTimeout(() => {
+            setupBookmarkMenuNavigation();
+        }, 100);
+        
+    } catch (error) {
+        console.log('❌ Error clicking more button:', error);
     }
-
-// Function to initialize menu navigation
+}// Function to initialize menu navigation
 function initializeMenuNavigation() {
     // Wait a bit for the menu to be created
     setTimeout(() => {
-        const menu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800');
+        const menu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800.w-44.h-32.rounded');
         if (menu) {
             menuItems = Array.from(menu.querySelectorAll('button'));
             currentMenuIndex = 0;
@@ -107,7 +226,7 @@ function initializeMenuNavigation() {
 
 function setupMenuKeyboardNavigation() {
         // Find the actual popup menu that was created
-        const popupMenu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800');
+        const popupMenu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800.w-44.h-32.rounded');
         if (!popupMenu) {
             console.log('Popup menu not found');
             return;
@@ -117,13 +236,48 @@ function setupMenuKeyboardNavigation() {
         menuItems = Array.from(popupMenu.querySelectorAll('button'));
         currentMenuIndex = 0;
         
-        console.log('Found', menuItems.length, 'menu items for keyboard navigation');
-        
         if (menuItems.length > 0) {
-            highlightMenuItem(0);
+            // Focus the first menu item
             menuItems[0].focus();
+            highlightMenuItem(0);
+            console.log('✅ Menu navigation set up with', menuItems.length, 'items');
         }
     }
+
+// New function specifically for bookmark menu navigation  
+function setupBookmarkMenuNavigation() {
+    console.log('🔍 Setting up bookmark menu navigation...');
+    
+    // Look for the popup menu in document.body (where it gets appended)
+    const popupMenu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800.w-44.h-32.rounded');
+    
+    if (!popupMenu) {
+        console.log('❌ Popup menu not found in body');
+        return;
+    }
+    
+    console.log('✅ Found popup menu:', popupMenu);
+    
+    // Get all button elements inside the menu
+    const buttons = Array.from(popupMenu.querySelectorAll('button'));
+    console.log('Found buttons in menu:', buttons.length);
+    
+    if (buttons.length === 0) {
+        console.log('❌ No buttons found in popup menu');
+        return;
+    }
+    
+    // Store menu items for navigation
+    menuItems = buttons;
+    currentMenuIndex = 0;
+    
+    // Focus the first button
+    buttons[0].focus();
+    console.log('✅ Focused first menu item:', buttons[0].textContent);
+    
+    // Add visual highlight
+    highlightMenuItem(0);
+}
 
 // Function to highlight menu item
 function highlightMenuItem(index) {
@@ -142,41 +296,45 @@ function highlightMenuItem(index) {
 // Function to handle menu navigation
 function handleMenuNavigation(event) {
     if (menuItems.length === 0) return false;
-    
-    switch(event.key) {
-        case 'ArrowDown':
-            event.preventDefault();
+    // Unify navigation for menu and filter dropdown
+    let handled = false;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation(); // Stop event from bubbling to card navigation
+        if (event.key === 'ArrowDown') {
             currentMenuIndex = (currentMenuIndex + 1) % menuItems.length;
-            highlightMenuItem(currentMenuIndex);
-            menuItems[currentMenuIndex].focus();
-            return true;
-        case 'ArrowUp':
-            event.preventDefault();
+        } else {
             currentMenuIndex = currentMenuIndex === 0 ? menuItems.length - 1 : currentMenuIndex - 1;
-            highlightMenuItem(currentMenuIndex);
-            menuItems[currentMenuIndex].focus();
-            return true;
-        case 'Enter':
-        case ' ':
-            event.preventDefault();
-            if (menuItems[currentMenuIndex]) {
-                menuItems[currentMenuIndex].click();
-            }
-            return true;
-        case 'Escape':
-            event.preventDefault();
-            closeMenu();
-            return true;
-        default:
-            return false;
+        }
+        highlightMenuItem(currentMenuIndex);
+        menuItems[currentMenuIndex].focus();
+        handled = true;
+    } else if (event.key === 'Enter' || event.key === ' ') {
+        // Enter/Space handling is now done at the top level for better control
+        // This section is kept for completeness but shouldn't be reached for Enter
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        console.log('🎯 Menu Enter/Space pressed (fallback handler)');
+        if (menuItems[currentMenuIndex]) {
+            menuItems[currentMenuIndex].click();
+        }
+        handled = true;
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation(); // Stop event from bubbling
+        closeMenu();
+        handled = true;
     }
+    return handled;
 }
 
 // Function to close menu
 function closeMenu() {
-    const menu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800');
+    const menu = document.querySelector('.absolute.z-10.flex.flex-col.bg-zinc-800.w-44.h-32.rounded');
     if (menu) {
         menu.remove();
+        console.log('✅ Bookmark menu closed');
     }
     menuItems = [];
     currentMenuIndex = -1;
@@ -203,12 +361,11 @@ function getFocusableElements() {
     if (recentsView) elements.push(recentsView);
     if (folderView) elements.push(folderView);
     
-    // Add main headings and their first bookmark cards
+    // Add main headings and their first bookmark cards only
     const folderList = document.getElementById('folder-list');
     if (folderList) {
         // Get all main sections (direct children of folder-list)
         const mainSections = Array.from(folderList.children);
-        
         for (let section of mainSections) {
             // Add main headings (h1, h2) - these are section titles
             const mainHeadings = section.querySelectorAll('h1, h2');
@@ -216,31 +373,31 @@ function getFocusableElements() {
                 // Make headings focusable
                 heading.setAttribute('tabindex', '0');
                 elements.push(heading);
-                
                 // After each heading, add the first bookmark card in that section
-                const sectionElement = heading.parentElement || heading.nextElementSibling || section;
                 let firstCard = null;
-                
-                // Look for first card in various possible containers
-                const possibleContainers = [
-                    sectionElement.querySelector('.grid'),
-                    sectionElement.querySelector('[class*="grid"]'),
-                    sectionElement,
-                    section
-                ];
-                
-                for (let container of possibleContainers) {
-                    if (container) {
-                        firstCard = container.querySelector('.card');
-                        if (firstCard) break;
+                // Try to find the first card after the heading
+                let next = heading.nextElementSibling;
+                while (next && !firstCard) {
+                    if (next.classList && next.classList.contains('card')) {
+                        firstCard = next;
+                        break;
                     }
+                    // Search inside containers
+                    const cardInContainer = next.querySelector ? next.querySelector('.card') : null;
+                    if (cardInContainer) {
+                        firstCard = cardInContainer;
+                        break;
+                    }
+                    next = next.nextElementSibling;
                 }
-                
+                // Fallback: search in section
+                if (!firstCard) {
+                    firstCard = section.querySelector('.card');
+                }
                 if (firstCard) {
                     elements.push(firstCard);
                 }
             });
-            
             // Handle sections without explicit headings but with cards
             if (mainHeadings.length === 0) {
                 const firstCard = section.querySelector('.card');
@@ -280,8 +437,6 @@ function handleBookmarkNavigation(event) {
     
     if (!isBookmarkFocused) return false;
     
-    const currentIndex = parseInt(focusedElement.getAttribute('data-bookmark-index'));
-    
     // Find the immediate parent container that holds this card
     // Look for grid containers or section containers
     let parentContainer = focusedElement.closest('.grid');
@@ -292,15 +447,15 @@ function handleBookmarkNavigation(event) {
         // Fallback: find the section container
         parentContainer = focusedElement.closest('#folder-list > *');
     }
-    
+
     if (!parentContainer) return false;
-    
+
     // Get cards only from current container (section or subfolder)
     const containerCards = Array.from(parentContainer.querySelectorAll('.card'));
     const currentContainerIndex = containerCards.indexOf(focusedElement);
-    
+
     if (currentContainerIndex === -1) return false;
-    
+
     let newContainerIndex = currentContainerIndex;
     
     // Calculate grid dimensions for current container
@@ -330,8 +485,12 @@ function handleBookmarkNavigation(event) {
     const targetCard = containerCards[newContainerIndex];
     if (targetCard) {
         // Update global bookmark index for consistency
-        currentBookmarkIndex = parseInt(targetCard.getAttribute('data-bookmark-index'));
+        currentBookmarkIndex = containerCards.indexOf(targetCard);
         targetCard.focus();
+        
+        // Highlight the newly focused card
+        highlightFocusedCard(targetCard);
+        
         targetCard.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'nearest',
@@ -434,71 +593,42 @@ function setupKeyboardListeners() {
     document.addEventListener("keydown", function (event) {
         console.log('Key pressed:', event.key, 'Target:', event.target.tagName, 'ID:', event.target.id);
     
-    // Handle menu navigation if menu is open
-    if (menuItems.length > 0) {
-        if (handleMenuNavigation(event)) {
+    // Handle direct bookmark actions when a card is focused
+    const focusedElement = document.activeElement;
+    if (focusedElement && focusedElement.classList.contains('card')) {
+        
+        // Highlight the focused card for better visibility
+        highlightFocusedCard(focusedElement);
+        
+        // Handle "E" key to edit bookmark
+        if (event.key.toLowerCase() === "e") {
+            console.log('✏️ E key pressed - opening edit modal');
+            event.preventDefault();
+            triggerEditAction(focusedElement);
             return;
         }
-    }
-    
-    // Handle "M" key to open bookmark card menu (check this BEFORE other navigation)
-    if (event.key.toLowerCase() === "m") {
-        const focusedElement = document.activeElement;
-        console.log('=== M KEY DEBUG ===');
-        console.log('M key pressed. Focused element tag:', focusedElement.tagName);
-        console.log('M key pressed. Focused element class:', focusedElement.className);
-        console.log('M key pressed. Focused element classList contains card:', focusedElement.classList.contains('card'));
-        console.log('M key pressed. All classes:', Array.from(focusedElement.classList));
-        console.log('Available cards on page:', document.querySelectorAll('.card').length);
-        console.log('===================');
         
-        // Test: Always show this message when M is pressed, regardless of focus
-        console.log('🔵 M KEY RECEIVED - Processing...');
-        
-        if (focusedElement && focusedElement.classList.contains('card')) {
-            console.log('✅ M key pressed - opening bookmark card menu for focused card');
+        // Handle "Delete" key to delete bookmark
+        if (event.key === "Delete" || event.key === "Backspace") {
+            console.log('🗑️ Delete key pressed - deleting bookmark');
             event.preventDefault();
-            
-            // Update the current bookmark index by finding it in the bookmarkCards array
-            bookmarkCards = Array.from(document.querySelectorAll('.card'));
-            currentBookmarkIndex = bookmarkCards.indexOf(focusedElement);
-            console.log('Current bookmark index:', currentBookmarkIndex);
-            
-            openBookmarkCardMenu(focusedElement);
+            triggerDeleteAction(focusedElement);
             return;
-        } else {
-            console.log('❌ M key pressed but no bookmark card is focused.');
-            console.log('Focused element details:', {
-                tag: focusedElement.tagName,
-                id: focusedElement.id,
-                classes: focusedElement.className
-            });
-            
-            // Test: Let's try to find and focus the first card for testing
-            const firstCard = document.querySelector('.card');
-            if (firstCard) {
-                console.log('🧪 TEST: Found first card, trying to focus it...');
-                firstCard.focus();
-                console.log('🧪 TEST: First card focused. Try M key again.');
-            }
         }
-    }
-    
-    // Handle "Enter" key to open bookmark link in new tab
-    if (event.key === "Enter") {
-        const focusedElement = document.activeElement;
-        if (focusedElement && focusedElement.classList.contains('card')) {
-            console.log('Enter key pressed - opening bookmark link');
+        
+        // Handle "C" key to capture/recapture screenshot
+        if (event.key.toLowerCase() === "c") {
+            console.log('📸 C key pressed - capturing screenshot');
             event.preventDefault();
-            
-            // Find the link inside the card
-            const link = focusedElement.querySelector('a');
-            if (link && link.href) {
-                console.log('Opening link:', link.href);
-                window.open(link.href, '_blank');
-            } else {
-                console.log('No link found in focused card');
-            }
+            triggerCaptureAction(focusedElement);
+            return;
+        }
+        
+        // Handle "Enter" key to open bookmark URL
+        if (event.key === "Enter") {
+            console.log('🔗 Enter key pressed - opening bookmark link');
+            event.preventDefault();
+            triggerOpenUrl(focusedElement);
             return;
         }
     }
@@ -510,6 +640,10 @@ function setupKeyboardListeners() {
     
     // Handle arrow key navigation for bookmark cards
     if (handleBookmarkNavigation(event)) {
+        // Close menu if open when navigating between cards
+        if (menuItems.length > 0) {
+            closeMenu();
+        }
         return;
     }
     
@@ -530,6 +664,14 @@ function setupKeyboardListeners() {
         if (settingsModal && !settingsModal.classList.contains("hidden")) {
             settingsModal.classList.add("hidden");
             console.log('Closed settings modal');
+            return;
+        }
+        
+        // Close edit modal if open
+        const editModal = document.getElementById("edit-modal");
+        if (editModal && !editModal.classList.contains("hidden")) {
+            editModal.classList.add("hidden");
+            console.log('Closed edit modal');
             return;
         }
         
@@ -585,29 +727,30 @@ function setupKeyboardListeners() {
         return;
     }
     
-    // Focus filter dropdown on 'f' key
+    // F key toggles filter dropdown open/close
     if (event.key.toLowerCase() === "f") {
-        console.log('F key pressed - focusing filter');
+        console.log('F key pressed - toggling filter');
         event.preventDefault();
-        // Scroll to top first, similar to search focus
         window.scrollTo({ top: 0, behavior: "smooth" });
         const filterDropdown = document.getElementById("filter");
         if (filterDropdown) {
-            filterDropdown.focus();
-            // For select elements, we need to dispatch a click event on the dropdown arrow or use showPicker
-            if (filterDropdown.showPicker) {
-                filterDropdown.showPicker();
+            if (document.activeElement === filterDropdown) {
+                filterDropdown.blur();
             } else {
-                // Fallback: simulate click on the dropdown area
-                const rect = filterDropdown.getBoundingClientRect();
-                const clickEvent = new MouseEvent('click', {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: rect.left + rect.width - 20, // Click near the arrow
-                    clientY: rect.top + rect.height / 2
-                });
-                filterDropdown.dispatchEvent(clickEvent);
+                filterDropdown.focus();
+                if (filterDropdown.showPicker) {
+                    filterDropdown.showPicker();
+                } else {
+                    const rect = filterDropdown.getBoundingClientRect();
+                    const clickEvent = new MouseEvent('click', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: rect.left + rect.width - 20,
+                        clientY: rect.top + rect.height / 2
+                    });
+                    filterDropdown.dispatchEvent(clickEvent);
+                }
             }
         }
         return;
