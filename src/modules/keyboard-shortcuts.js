@@ -1,6 +1,81 @@
 // Keyboard shortcuts for Bookmark Hero
 console.log('Keyboard shortcuts script loaded!');
 
+// Function to trigger save changes directly
+function triggerSaveChanges() {
+    console.log('💾 Triggering save changes...');
+    
+    // Get the current bookmark node and form values
+    const currentBookmarkNode = window.currentBookmarkNode;
+    if (!currentBookmarkNode) {
+        console.error('❌ No current bookmark node found');
+        return;
+    }
+    
+    const editTitleInput = document.getElementById("edit-title");
+    const editUrlInput = document.getElementById("edit-url");
+    const folderDropdown = document.getElementById("folder-dropdown");
+    
+    if (!editTitleInput || !editUrlInput || !folderDropdown) {
+        console.error('❌ Edit modal inputs not found');
+        return;
+    }
+    
+    const newTitle = editTitleInput.value.trim();
+    const newUrl = editUrlInput.value.trim();
+    const newParentId = folderDropdown.value;
+    
+    if (!newTitle || !newUrl) {
+        console.log('❌ Title or URL is empty');
+        return;
+    }
+    
+    console.log('📝 Saving bookmark:', { newTitle, newUrl, newParentId });
+    
+    // Update bookmark title and URL
+    chrome.bookmarks.update(currentBookmarkNode.id, {
+        title: newTitle,
+        url: newUrl
+    }, function() {
+        console.log('✅ Updated bookmark title and URL');
+        
+        // Move bookmark to new folder if needed
+        if (newParentId !== currentBookmarkNode.parentId) {
+            chrome.bookmarks.move(currentBookmarkNode.id, {
+                parentId: newParentId
+            }, function() {
+                console.log('✅ Moved bookmark to new folder');
+                finalizeSave();
+            });
+        } else {
+            finalizeSave();
+        }
+    });
+    
+    function finalizeSave() {
+        console.log('✅ Save completed, closing modal');
+        // Close the modal using the global function
+        if (window.closeEditModal) {
+            window.closeEditModal();
+        } else {
+            const editModal = document.getElementById("edit-modal");
+            if (editModal) {
+                editModal.classList.add("hidden");
+            }
+        }
+        
+        // Refresh the bookmark display
+        if (window.updateBookmarkCards) {
+            window.updateBookmarkCards();
+        }
+        
+        // Reload bookmarks to reflect changes
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    }
+}
+
 // Action functions for direct keyboard shortcuts
 function triggerEditAction(cardElement) {
     console.log('🔧 Triggering edit action for card:', cardElement);
@@ -21,7 +96,10 @@ function triggerEditAction(cardElement) {
             url: bookmarkData.url,
             parentId: bookmarkData.parentId
         });
+        
+        // Call openEditModal directly with the bookmark data
         window.openEditModal(bookmarkData);
+        console.log('📝 Edit modal function called');
     } else {
         console.error('❌ Could not extract bookmark data from card');
         console.log('Card HTML:', cardElement.outerHTML);
@@ -37,23 +115,55 @@ function triggerDeleteAction(cardElement) {
     }
     
     const bookmarkData = window.getBookmarkFromCard(cardElement);
-    if (bookmarkData && confirm(`Are you sure you want to delete "${bookmarkData.title}"?`)) {
-        console.log('Deleting bookmark:', bookmarkData.title);
+    if (bookmarkData && confirm(`Are you sure you want to delete the bookmark "${bookmarkData.title}"?`)) {
+        console.log('✅ Confirmed deletion of bookmark:', bookmarkData.title);
         
-        // Find next card to focus on after deletion
+        // Find next card to focus on BEFORE deletion
         const allCards = Array.from(document.querySelectorAll('.card'));
         const currentIndex = allCards.indexOf(cardElement);
         const nextCard = allCards[currentIndex + 1] || allCards[currentIndex - 1];
         
-        window.deleteBookmark(bookmarkData);
+        console.log('📍 Current card index:', currentIndex, 'Next card found:', !!nextCard);
         
-        // Focus next card after a short delay
+        // Remove focus styling from current card before deletion
+        highlightFocusedCard(null);
+        
+        // Call deleteBookmark directly with the bookmark data
+        window.deleteBookmark(bookmarkData);
+        console.log('🗑️ Delete function called for bookmark');
+        
+        // Focus and highlight next card after deletion
         setTimeout(() => {
-            if (nextCard && document.contains(nextCard)) {
-                nextCard.focus();
-                console.log('Focused next card after deletion');
+            // Refresh the bookmark cards array after deletion
+            if (window.updateBookmarkCards) {
+                window.updateBookmarkCards();
             }
-        }, 100);
+            
+            // Find the new card to focus (since DOM has changed)
+            const updatedCards = Array.from(document.querySelectorAll('.card'));
+            let cardToFocus = null;
+            
+            if (nextCard && document.contains(nextCard)) {
+                // If the next card still exists, focus it
+                cardToFocus = nextCard;
+            } else if (updatedCards.length > 0) {
+                // Otherwise, focus the card at the same index or the last one
+                const targetIndex = Math.min(currentIndex, updatedCards.length - 1);
+                cardToFocus = updatedCards[targetIndex];
+            }
+            
+            if (cardToFocus) {
+                cardToFocus.focus();
+                highlightFocusedCard(cardToFocus);
+                console.log('🎯 Focused and highlighted card after deletion:', cardToFocus.querySelector('h3')?.textContent || 'Unknown title');
+            } else {
+                console.log('❌ No card available to focus after deletion');
+            }
+        }, 300); // Increased delay to allow for DOM updates after deletion
+    } else if (bookmarkData) {
+        console.log('❌ User cancelled deletion');
+    } else {
+        console.error('❌ Could not extract bookmark data from card');
     }
 }
 
@@ -67,13 +177,27 @@ function triggerCaptureAction(cardElement) {
     
     const bookmarkData = window.getBookmarkFromCard(cardElement);
     if (bookmarkData) {
-        console.log('Capturing screenshot for:', bookmarkData.title, 'URL:', bookmarkData.url);
-        window.captureScreenshot(bookmarkData.url, bookmarkData.title, function() {
-            console.log('Screenshot capture completed');
-            // Optionally refresh the card or show some feedback
+        console.log('✅ Capturing screenshot for:', bookmarkData.title, 'URL:', bookmarkData.url);
+        
+        // Call captureScreenshot directly with the bookmark data
+        window.captureScreenshot(bookmarkData.url, bookmarkData.title, function(url, newThumbnailUrl) {
+            console.log('📸 Screenshot capture completed for:', bookmarkData.title);
+            
+            // Find and update the thumbnail image for this bookmark
+            const bookmarkCards = document.querySelectorAll('.card');
+            bookmarkCards.forEach(card => {
+                const cardLink = card.querySelector('a[href="' + bookmarkData.url + '"]');
+                if (cardLink) {
+                    const thumbnailImg = card.querySelector('img[alt="' + bookmarkData.url + '"]');
+                    if (thumbnailImg) {
+                        thumbnailImg.src = newThumbnailUrl;
+                        console.log('🖼️ Updated thumbnail for:', bookmarkData.title);
+                    }
+                }
+            });
         });
     } else {
-        console.error('Could not extract bookmark data from card');
+        console.error('❌ Could not extract bookmark data from card');
     }
 }
 
@@ -96,11 +220,13 @@ function highlightFocusedCard(cardElement) {
         card.style.boxShadow = '';
     });
     
-    // Highlight the focused card
+    // Highlight the focused card (if provided)
     if (cardElement) {
         cardElement.style.outline = '3px solid #3b82f6';
         cardElement.style.boxShadow = '0 0 0 1px #3b82f6';
         console.log('🎯 Highlighted focused card:', cardElement.querySelector('h3')?.textContent || 'Unknown title');
+    } else {
+        console.log('🔄 Cleared all card highlights');
     }
 }
 
@@ -138,12 +264,16 @@ let menuItems = [];
 // Update bookmark cards array when DOM changes
 function updateBookmarkCards() {
     bookmarkCards = Array.from(document.querySelectorAll('.card'));
+    console.log('🔄 Updated bookmark cards array:', bookmarkCards.length, 'cards found');
     // Add tabindex to bookmark cards for keyboard navigation
     bookmarkCards.forEach((card, index) => {
         card.setAttribute('tabindex', '0');
         card.setAttribute('data-bookmark-index', index);
     });
 }
+
+// Make updateBookmarkCards available globally so main.js can call it
+window.updateBookmarkCards = updateBookmarkCards;
 
 // Function to open bookmark card menu programmatically
 // Function to open bookmark card menu
@@ -430,51 +560,103 @@ function focusBookmarkCard(index) {
 
 // Function to handle arrow key navigation within bookmark cards
 function handleBookmarkNavigation(event) {
-    if (bookmarkCards.length === 0) return false;
+    console.log('🧭 handleBookmarkNavigation called with key:', event.key);
+    
+    if (bookmarkCards.length === 0) {
+        console.log('❌ No bookmark cards found');
+        return false;
+    }
     
     const focusedElement = document.activeElement;
-    const isBookmarkFocused = focusedElement.classList.contains('card');
+    console.log('🎯 Currently focused element:', focusedElement.tagName, 'Classes:', focusedElement.className);
     
-    if (!isBookmarkFocused) return false;
+    const isBookmarkFocused = focusedElement.classList.contains('card');
+    console.log('📋 Is bookmark card focused?', isBookmarkFocused);
+    
+    if (!isBookmarkFocused) {
+        console.log('❌ Not focused on a bookmark card, skipping navigation');
+        return false;
+    }
     
     // Find the immediate parent container that holds this card
     // Look for grid containers or section containers
-    let parentContainer = focusedElement.closest('.grid');
+    let parentContainer = null;
+    
+    // First try to find the grid container (for grid view)
+    parentContainer = focusedElement.closest('[class*="grid-cols"]'); // This will match grid-cols-2, grid-cols-3, etc.
+    
     if (!parentContainer) {
+        // Try other grid patterns
         parentContainer = focusedElement.closest('[class*="grid"]');
     }
+    
     if (!parentContainer) {
-        // Fallback: find the section container
+        // Fallback for folder view: find the section container
         parentContainer = focusedElement.closest('#folder-list > *');
     }
+    
+    if (!parentContainer) {
+        // Last resort: use the folder-list itself
+        parentContainer = document.getElementById('folder-list');
+    }
 
-    if (!parentContainer) return false;
+    if (!parentContainer) {
+        console.log('❌ Could not find parent container for navigation');
+        return false;
+    }
+    
+    console.log('🎯 Found parent container:', parentContainer.className);
 
     // Get cards only from current container (section or subfolder)
     const containerCards = Array.from(parentContainer.querySelectorAll('.card'));
     const currentContainerIndex = containerCards.indexOf(focusedElement);
 
-    if (currentContainerIndex === -1) return false;
+    if (currentContainerIndex === -1) {
+        console.log('❌ Current card not found in container');
+        return false;
+    }
+    
+    console.log('📍 Current card index:', currentContainerIndex, 'of', containerCards.length, 'cards');
 
     let newContainerIndex = currentContainerIndex;
     
     // Calculate grid dimensions for current container
     const containerWidth = parentContainer.offsetWidth;
     const cardWidth = 240; // min-w-60 = 240px
-    const cardsPerRow = Math.max(1, Math.floor(containerWidth / cardWidth));
+    let cardsPerRow = Math.max(1, Math.floor(containerWidth / cardWidth));
+    
+    // For CSS grid containers, try to get the actual column count from computed styles
+    if (parentContainer.classList.contains('grid') || parentContainer.className.includes('grid-cols')) {
+        const computedStyle = window.getComputedStyle(parentContainer);
+        const gridTemplateColumns = computedStyle.gridTemplateColumns;
+        if (gridTemplateColumns && gridTemplateColumns !== 'none') {
+            // Count the number of columns in the grid
+            const columnCount = gridTemplateColumns.split(' ').length;
+            if (columnCount > 0) {
+                cardsPerRow = columnCount;
+                console.log('📊 Detected CSS grid with', cardsPerRow, 'columns');
+            }
+        }
+    }
+    
+    console.log('📏 Container width:', containerWidth, 'Card width:', cardWidth, 'Cards per row:', cardsPerRow);
     
     switch(event.key) {
         case 'ArrowRight':
             newContainerIndex = (currentContainerIndex + 1) % containerCards.length;
+            console.log('➡️ Moving right from', currentContainerIndex, 'to', newContainerIndex);
             break;
         case 'ArrowLeft':
             newContainerIndex = currentContainerIndex === 0 ? containerCards.length - 1 : currentContainerIndex - 1;
+            console.log('⬅️ Moving left from', currentContainerIndex, 'to', newContainerIndex);
             break;
         case 'ArrowDown':
             newContainerIndex = Math.min(currentContainerIndex + cardsPerRow, containerCards.length - 1);
+            console.log('⬇️ Moving down from', currentContainerIndex, 'to', newContainerIndex, '(+' + cardsPerRow + ')');
             break;
         case 'ArrowUp':
             newContainerIndex = Math.max(currentContainerIndex - cardsPerRow, 0);
+            console.log('⬆️ Moving up from', currentContainerIndex, 'to', newContainerIndex, '(-' + cardsPerRow + ')');
             break;
         default:
             return false;
@@ -504,6 +686,18 @@ function handleBookmarkNavigation(event) {
 // Enhanced Tab navigation
 function handleTabNavigation(event) {
     if (event.key !== 'Tab') return false;
+    
+    // Check if settings modal is open
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+        return handleSettingsModalTabNavigation(event);
+    }
+    
+    // Check if edit modal is open
+    const editModal = document.getElementById('edit-modal');
+    if (editModal && !editModal.classList.contains('hidden')) {
+        return handleEditModalTabNavigation(event);
+    }
     
     const focusableElements = getFocusableElements();
     const currentElement = document.activeElement;
@@ -557,6 +751,102 @@ function handleTabNavigation(event) {
     return true;
 }
 
+// Function to handle tab navigation within edit modal
+function handleEditModalTabNavigation(event) {
+    console.log('🔄 Edit modal tab navigation');
+    
+    // Define the tab order for edit modal elements
+    const modalElements = [
+        document.getElementById('edit-title'),
+        document.getElementById('edit-url'),
+        document.getElementById('folder-dropdown'),
+        document.getElementById('cancel-edit'),
+        document.getElementById('save-edit')
+    ].filter(el => el && !el.disabled && !el.hidden);
+    
+    console.log('📋 Modal elements found:', modalElements.length);
+    
+    if (modalElements.length === 0) {
+        console.log('❌ No focusable elements found in modal');
+        return false;
+    }
+    
+    const currentElement = document.activeElement;
+    let currentIndex = modalElements.indexOf(currentElement);
+    
+    console.log('🎯 Current element index:', currentIndex, 'Element:', currentElement.id || currentElement.tagName);
+    
+    let nextIndex;
+    if (event.shiftKey) {
+        // Shift+Tab - go backwards
+        nextIndex = currentIndex <= 0 ? modalElements.length - 1 : currentIndex - 1;
+        console.log('⬅️ Shift+Tab: moving to index', nextIndex);
+    } else {
+        // Tab - go forwards
+        nextIndex = (currentIndex + 1) % modalElements.length;
+        console.log('➡️ Tab: moving to index', nextIndex);
+    }
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const nextElement = modalElements[nextIndex];
+    if (nextElement) {
+        nextElement.focus();
+        console.log('✅ Focused element:', nextElement.id || nextElement.tagName);
+    }
+    
+    return true;
+}
+
+// Function to handle tab navigation within settings modal
+function handleSettingsModalTabNavigation(event) {
+    console.log('🔄 Settings modal tab navigation');
+    
+    // Define the tab order for settings modal elements: Auto → Light → Dark → Feedback → Buy me coffee
+    const modalElements = [
+        document.querySelector('button[data-theme="auto"]'),
+        document.querySelector('button[data-theme="light"]'),
+        document.querySelector('button[data-theme="dark"]'),
+        document.querySelector('a[href="https://tally.so/r/n0xjLP"]'), // Feedback link
+        document.querySelector('a[href="https://www.buymeacoffee.com/snmbala"]') // Buy coffee link
+    ].filter(el => el && !el.disabled && !el.hidden);
+    
+    console.log('⚙️ Settings modal elements found:', modalElements.length);
+    
+    if (modalElements.length === 0) {
+        console.log('❌ No focusable elements found in settings modal');
+        return false;
+    }
+    
+    const currentElement = document.activeElement;
+    let currentIndex = modalElements.indexOf(currentElement);
+    
+    console.log('🎯 Current settings element index:', currentIndex, 'Element:', currentElement.textContent || currentElement.tagName);
+    
+    let nextIndex;
+    if (event.shiftKey) {
+        // Shift+Tab - go backwards
+        nextIndex = currentIndex <= 0 ? modalElements.length - 1 : currentIndex - 1;
+        console.log('⬅️ Shift+Tab: moving to index', nextIndex);
+    } else {
+        // Tab - go forwards
+        nextIndex = (currentIndex + 1) % modalElements.length;
+        console.log('➡️ Tab: moving to index', nextIndex);
+    }
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const nextElement = modalElements[nextIndex];
+    if (nextElement) {
+        nextElement.focus();
+        console.log('✅ Focused settings element:', nextElement.textContent || nextElement.tagName);
+    }
+    
+    return true;
+}
+
 // Initialize bookmark cards when DOM is loaded
 function initializeTabNavigation() {
     updateBookmarkCards();
@@ -591,7 +881,24 @@ function setupKeyboardListeners() {
     console.log('Setting up keyboard event listeners...');
     
     document.addEventListener("keydown", function (event) {
-        console.log('Key pressed:', event.key, 'Target:', event.target.tagName, 'ID:', event.target.id);
+        console.log('Key pressed:', event.key, 'Target:', event.target.tagName, 'ID:', event.target.id, 'Classes:', event.target.className);
+    
+        // Handle Enter key in edit modal to save changes
+        const editModal = document.getElementById('edit-modal');
+        if (editModal && !editModal.classList.contains('hidden') && event.key === 'Enter') {
+            // If Enter is pressed on input fields or save button in edit modal, save changes
+            if (event.target.id === 'edit-title' || 
+                event.target.id === 'edit-url' || 
+                event.target.id === 'save-edit') {
+                console.log('💾 Enter key pressed in edit modal - saving changes');
+                event.preventDefault();
+                event.stopPropagation();
+                
+                // Directly trigger the save functionality
+                triggerSaveChanges();
+                return;
+            }
+        }
     
     // Handle direct bookmark actions when a card is focused
     const focusedElement = document.activeElement;
@@ -631,6 +938,8 @@ function setupKeyboardListeners() {
             triggerOpenUrl(focusedElement);
             return;
         }
+    } else {
+        console.log('🔍 Active element is not a card. Element:', focusedElement.tagName, 'Classes:', focusedElement.className);
     }
     
     // Handle Tab navigation
@@ -653,25 +962,41 @@ function setupKeyboardListeners() {
         console.log('Current active element:', document.activeElement.tagName, document.activeElement.id);
         event.preventDefault();
         
-        // Close menu if open
-        if (menuItems.length > 0) {
-            closeMenu();
+        // Close edit modal if open (highest priority)
+        const editModal = document.getElementById("edit-modal");
+        if (editModal && !editModal.classList.contains("hidden")) {
+            // Use the existing closeEditModal function which handles focus restoration
+            if (window.closeEditModal) {
+                window.closeEditModal();
+            } else {
+                editModal.classList.add("hidden");
+                // Restore focus to previous element
+                if (window.lastFocusedElement && document.contains(window.lastFocusedElement)) {
+                    window.lastFocusedElement.focus();
+                    window.lastFocusedElement = null;
+                }
+            }
+            console.log('Closed edit modal');
             return;
         }
         
-        // Close settings modal if open (highest priority)
+        // Close settings modal if open (second priority)
         const settingsModal = document.getElementById("settings-modal");
         if (settingsModal && !settingsModal.classList.contains("hidden")) {
             settingsModal.classList.add("hidden");
+            // Restore focus to settings button
+            const settingsButton = document.getElementById("settings-btn");
+            if (settingsButton) {
+                settingsButton.focus();
+                console.log('🎯 Restored focus to settings button');
+            }
             console.log('Closed settings modal');
             return;
         }
         
-        // Close edit modal if open
-        const editModal = document.getElementById("edit-modal");
-        if (editModal && !editModal.classList.contains("hidden")) {
-            editModal.classList.add("hidden");
-            console.log('Closed edit modal');
+        // Close menu if open
+        if (menuItems.length > 0) {
+            closeMenu();
             return;
         }
         
