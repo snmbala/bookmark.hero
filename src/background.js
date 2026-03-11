@@ -49,9 +49,9 @@ function compressImage(dataUrl, targetSizeKB, callback) {
 		.then((res) => res.blob())
 		.then((blob) => createImageBitmap(blob))
 		.then((imageBitmap) => {
-			const canvas = new OffscreenCanvas(1024, 683);
+			const canvas = new OffscreenCanvas(480, 320);
 			const ctx = canvas.getContext("2d");
-			ctx.drawImage(imageBitmap, 0, 0, 1024, 683);
+			ctx.drawImage(imageBitmap, 0, 0, 480, 320);
 
 			let currentQuality = maxQuality;
 			let lastBlobSize = Infinity;
@@ -94,32 +94,59 @@ chrome.action.onClicked.addListener(function (tab) {
 	chrome.tabs.create({ url: chrome.runtime.getURL("main.html") });
 });
 
-chrome.bookmarks.onCreated.addListener(function (bookmark, bookmarkInfo) {
+// ─── Thumbnail storage management ─────────────────────────────────────────────
+
+/**
+ * Removes all chrome.storage.local entries whose key is not a URL of an
+ * existing bookmark.  Safe to call at any time; fires-and-forgets.
+ */
+function pruneOrphanedThumbnails() {
+	chrome.bookmarks.getTree(function (tree) {
+		const urls = new Set();
+		function walk(nodes) {
+			for (const node of nodes) {
+				if (node.url) urls.add(node.url);
+				if (node.children) walk(node.children);
+			}
+		}
+		walk(tree);
+
+		chrome.storage.local.get(null, function (items) {
+			const orphaned = Object.keys(items).filter(k => !urls.has(k));
+			if (orphaned.length > 0) {
+				chrome.storage.local.remove(orphaned);
+			}
+		});
+	});
+}
+
+// Remove thumbnail immediately when a bookmark is deleted
+chrome.bookmarks.onRemoved.addListener(function (id, removeInfo) {
+	if (removeInfo.node && removeInfo.node.url) {
+		chrome.storage.local.remove(removeInfo.node.url);
+	}
+});
+
+// Prune orphans on browser start and after extension install/update
+chrome.runtime.onStartup.addListener(pruneOrphanedThumbnails);
+chrome.runtime.onInstalled.addListener(pruneOrphanedThumbnails);
+
+chrome.bookmarks.onCreated.addListener(function (id, bookmarkInfo) {
+	if (!bookmarkInfo.url) return; // folders have no URL
 	// Capture the visible tab as a screenshot
 	chrome.tabs.captureVisibleTab(null, { format: "png" }, function (dataUrl) {
 		if (dataUrl) {
 			// Compress the captured screenshot to meet a target size of 100 KB
-			compressImage(dataUrl, 100, function (compressedDataUrl) {
-				key = bookmarkInfo.url;
-				value = compressedDataUrl;
-				console.log(bookmark);
+			compressImage(dataUrl, 40, function (compressedDataUrl) {
+				const key = bookmarkInfo.url;
+				const value = compressedDataUrl;
 				// Store the compressed screenshot in local storage
 				chrome.storage.local.set({ [key]: value }, function () {
 					if (chrome.runtime.lastError) {
 						console.error(chrome.runtime.lastError.message);
-					} else {
-						console.log(
-							"Compressed screenshot captured and stored for bookmark with ID:",
-							id
-						);
 					}
 				});
 			});
-		} else {
-			console.error(
-				"Failed to capture screenshot for bookmark with ID:",
-				id
-			);
 		}
 	});
 });

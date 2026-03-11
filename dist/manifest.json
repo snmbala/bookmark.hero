@@ -9,7 +9,7 @@
    "background": {
       "service_worker": "background.js"
    },
-   "description": "Capture your bookmark with screenshot. Quick search your bookmark, auto-tag and much more..",
+   "description": "Bookmark Hero is a visual bookmark manager that shows bookmarks with page previews and thumbnails, making it easier to organize and search saved websites.",
    "host_permissions": [ "\u003Call_urls>" ],
    "icons": {
       "128": "assets/icons/bookmark.png",
@@ -20,6 +20,5 @@
    "manifest_version": 3,
    "name": "Bookmark hero",
    "permissions": [ "bookmarks", "tabs", "unlimitedStorage", "storage", "activeTab" ],
-   "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "1.4.7.2"
+   "version": "1.5.0"
 }

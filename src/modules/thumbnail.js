@@ -5,6 +5,13 @@ export function captureScreenshot(url, title, updateCallback) {
         return;
     }
 
+    // Safari does not support chrome.windows — screenshot capture is unavailable.
+    // Auto-capture on bookmark creation (background.js) still works via captureVisibleTab.
+    if (!chrome.windows || typeof chrome.windows.create !== 'function') {
+        if (updateCallback) updateCallback(url, null);
+        return;
+    }
+
     const windowWidth = 1024;
     const windowHeight = 683;
     chrome.windows.create(
@@ -16,45 +23,61 @@ export function captureScreenshot(url, title, updateCallback) {
             left: Math.round((screen.width - windowWidth) / 2),
             top: Math.round((screen.height - windowHeight) / 2),
         },
-        function (window) {
-            const tabId = window.tabs[0].id;
+        function (createdWindow) {
+            if (!createdWindow || chrome.runtime.lastError) {
+                if (updateCallback) updateCallback(url, null);
+                return;
+            }
+            const tabId = createdWindow.tabs[0].id;
 
-            chrome.tabs.onUpdated.addListener(function listener(
-                tabId,
-                changeInfo
-            ) {
-                if (tabId === tabId && changeInfo.status === "complete") {
+            // Timeout: close popup and call callback so callers (e.g. bulk queue) never stall
+            const abortTimer = setTimeout(function () {
+                chrome.tabs.onUpdated.removeListener(listener);
+                chrome.windows.remove(createdWindow.id, function () {});
+                if (updateCallback && typeof updateCallback === 'function') {
+                    updateCallback(url, null); // null = failed/timed out
+                }
+            }, 15000);
+
+            function listener(updatedTabId, changeInfo) {
+                if (updatedTabId === tabId && changeInfo.status === "complete") {
                     chrome.tabs.onUpdated.removeListener(listener);
+                    clearTimeout(abortTimer);
 
                     setTimeout(function () {
                         chrome.tabs.captureVisibleTab(
-                            window.id,
+                            createdWindow.id,
                             { format: "png" },
                             function (dataUrl) {
                                 if (dataUrl) {
                                     compressImage(
                                         dataUrl,
-                                        100,
+                                        40,
                                         function (compressedDataUrl) {
-                                            saveScreenshotToLocalStorage(
-                                                url,
-                                                compressedDataUrl
-                                            );
-                                            // Call the update callback if provided
+                                            chrome.storage.local.set({ [url]: compressedDataUrl }, function () {
+                                                if (chrome.runtime.lastError) {
+                                                    console.error(chrome.runtime.lastError.message);
+                                                }
+                                            });
                                             if (updateCallback && typeof updateCallback === 'function') {
                                                 updateCallback(url, compressedDataUrl);
                                             }
                                         }
                                     );
                                 } else {
-                                    console.error("Failed to capture screenshot for URL:", url);
+                                    // Capture failed — still notify caller so queues don't stall
+                                    if (updateCallback && typeof updateCallback === 'function') {
+                                        updateCallback(url, null);
+                                    }
                                 }
-                                chrome.windows.remove(window.id);
+                                chrome.windows.remove(createdWindow.id);
                             }
                         );
                     }, 1000);
                 }
-            });
+            }
+
+            chrome.tabs.onUpdated.addListener(listener);
         }
     );
 }
@@ -66,35 +89,25 @@ function compressImage(dataUrl, targetSizeKB, callback) {
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        canvas.width = 1024;
-        canvas.height = 683;
+        canvas.width = 480;
+        canvas.height = 320;
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         let compressionQuality = 1.0;
 
         while (true) {
-            const dataUrl = canvas.toDataURL("image/jpeg", compressionQuality);
-            const compressedSizeKB = dataUrl.length / 1024;
+            const compressed = canvas.toDataURL("image/jpeg", compressionQuality);
+            const compressedSizeKB = compressed.length / 1024;
 
             if (compressedSizeKB <= targetSizeKB || compressionQuality <= 0.1) {
-                callback(dataUrl);
+                callback(compressed);
                 break;
             } else {
                 compressionQuality -= 0.1;
             }
         }
     };
-}
-
-function saveScreenshotToLocalStorage(url, dataUrl) {
-    const key = url;
-    const value = dataUrl;
-    chrome.storage.local.set({ [key]: value }, function () {
-        if (chrome.runtime.lastError) {
-            console.error(chrome.runtime.lastError.message);
-        }
-    });
 }
 
 export function getThumbnailUrl(url, callback) {
@@ -114,24 +127,15 @@ export function getThumbnailUrl(url, callback) {
 }
 
 export function updateThumbnail(url, dataUrl) {
-    // Find thumbnail images by URL in alt attribute
     const thumbnailImgs = document.querySelectorAll(`img[alt='${url}']`);
     if (thumbnailImgs.length > 0) {
-        thumbnailImgs.forEach(img => {
-            img.src = dataUrl;
-        });
-        console.log(`Updated ${thumbnailImgs.length} thumbnail(s) for URL:`, url);
+        thumbnailImgs.forEach(img => { img.src = dataUrl; });
     } else {
-        // Also try to find by bookmark URL in the card
-        const bookmarkCards = document.querySelectorAll('.card');
-        bookmarkCards.forEach(card => {
+        document.querySelectorAll('.card').forEach(card => {
             const cardLink = card.querySelector(`a[href="${url}"]`);
             if (cardLink) {
                 const thumbnailImg = card.querySelector('img');
-                if (thumbnailImg) {
-                    thumbnailImg.src = dataUrl;
-                    console.log("Updated thumbnail via card link for URL:", url);
-                }
+                if (thumbnailImg) thumbnailImg.src = dataUrl;
             }
         });
     }
