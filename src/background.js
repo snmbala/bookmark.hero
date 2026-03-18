@@ -1,57 +1,49 @@
-// function compressImage(dataUrl, targetSizeKB, callback) {
-// 	const img = new Image();
-// 	img.onload = function () {
-// 		const canvas = document.createElement("canvas");
-// 		const ctx = canvas.getContext("2d");
-
-// 		// Set canvas dimensions to match the desired dimensions
-// 		canvas.width = 1024;
-// 		canvas.height = 683;
-
-// 		// Draw the image onto the canvas
-// 		ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-// 		// Initialize compression quality
-// 		let compressionQuality = 1.0; // Start with maximum quality
-
-// 		// Compress the image until it meets the target size
-// 		while (true) {
-// 			// Convert canvas to data URL with current compression quality
-// 			const compressedDataUrl = canvas.toDataURL(
-// 				"image/jpeg",
-// 				compressionQuality
-// 			);
-
-// 			// Calculate the size of the compressed image
-// 			const compressedSizeKB = compressedDataUrl.length / 1024;
-
-// 			// Check if the compressed size meets the target size or compression quality is very low
-// 			if (compressedSizeKB <= targetSizeKB || compressionQuality <= 0.1) {
-// 				// If the compressed size is within the target or compression quality is low enough, stop compression
-// 				callback(compressedDataUrl);
-// 				break;
-// 			} else {
-// 				// Decrease the compression quality for further compression
-// 				compressionQuality -= 0.1; // Decrease by 0.1 (adjust as needed)
-// 			}
-// 		}
-// 	};
-// 	img.src = dataUrl;
-// }
-
-// Function to compress an image to meet a target size
+/**
+ * Compress an image data URL to meet a target size
+ * Uses OffscreenCanvas when available (service worker context)
+ * Falls back to standard Canvas for main thread
+ */
 function compressImage(dataUrl, targetSizeKB, callback) {
-	const maxQuality = 1;
-	const minQuality = 0.1; // Minimum allowed quality
-	const step = 0.05; // Step for adjusting quality
+	if (!dataUrl || !callback) {
+		console.error('compressImage: dataUrl and callback are required');
+		return;
+	}
 
-	fetch(dataUrl)
-		.then((res) => res.blob())
-		.then((blob) => createImageBitmap(blob))
+	// Try OffscreenCanvas first (service worker context)
+	if (typeof OffscreenCanvas !== 'undefined') {
+		compressWithOffscreenCanvas(dataUrl, targetSizeKB, callback);
+	} else {
+		// Fall back to standard Canvas (main thread)
+		compressWithCanvas(dataUrl, targetSizeKB, callback);
+	}
+}
+
+function compressWithOffscreenCanvas(dataUrl, targetSizeKB, callback) {
+	const maxQuality = 1;
+	const minQuality = 0.1;
+	const step = 0.05;
+
+	// Convert data URL to blob without using fetch (service workers can't fetch data URLs)
+	const parts = dataUrl.split(',');
+	const mimeMatch = parts[0].match(/:(.*?);/);
+	const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+	const binaryString = atob(parts[1]);
+	const bytes = new Uint8Array(binaryString.length);
+	for (let i = 0; i < binaryString.length; i++) {
+		bytes[i] = binaryString.charCodeAt(i);
+	}
+	const blob = new Blob([bytes], { type: mime });
+
+	createImageBitmap(blob)
 		.then((imageBitmap) => {
 			const canvas = new OffscreenCanvas(480, 320);
-			const ctx = canvas.getContext("2d");
-			ctx.drawImage(imageBitmap, 0, 0, 480, 320);
+			const ctx = canvas.getContext('2d');
+			const scale = Math.max(480 / imageBitmap.width, 320 / imageBitmap.height);
+			const sw = 480 / scale;
+			const sh = 320 / scale;
+			const sx = (imageBitmap.width - sw) / 2;
+			const sy = (imageBitmap.height - sh) / 2;
+			ctx.drawImage(imageBitmap, sx, sy, sw, sh, 0, 0, 480, 320);
 
 			let currentQuality = maxQuality;
 			let lastBlobSize = Infinity;
@@ -59,7 +51,7 @@ function compressImage(dataUrl, targetSizeKB, callback) {
 			const compress = () => {
 				canvas
 					.convertToBlob({
-						type: "image/jpeg",
+						type: 'image/jpeg',
 						quality: currentQuality,
 					})
 					.then((compressedBlob) => {
@@ -69,39 +61,144 @@ function compressImage(dataUrl, targetSizeKB, callback) {
 							currentQuality <= minQuality ||
 							blobSizeKB >= lastBlobSize
 						) {
-							// If the difference is within 1KB of the target size, or quality is already at minQuality, or blob size starts increasing, stop
 							const reader = new FileReader();
 							reader.onloadend = function () {
 								callback(reader.result);
 							};
 							reader.readAsDataURL(compressedBlob);
 						} else {
-							// Adjust quality and try again
 							currentQuality -= step;
 							lastBlobSize = blobSizeKB;
 							compress();
 						}
+					})
+					.catch((err) => {
+						console.error('Compression error:', err);
+						callback(null);
 					});
 			};
 
 			compress();
 		})
-		.catch((err) => console.error(err));
+		.catch((err) => {
+			console.error('Image compression failed:', err);
+			callback(null);
+		});
+}
+
+function compressWithCanvas(dataUrl, targetSizeKB, callback) {
+	const img = new Image();
+	img.onload = function () {
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+
+		canvas.width = 480;
+		canvas.height = 320;
+
+		try {
+			const scale = Math.max(480 / img.width, 320 / img.height);
+			const sw = 480 / scale;
+			const sh = 320 / scale;
+			const sx = (img.width - sw) / 2;
+			const sy = (img.height - sh) / 2;
+			ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+		} catch (err) {
+			console.error('Failed to draw image on canvas:', err);
+			callback(null);
+			return;
+		}
+
+		let compressionQuality = 1.0;
+		const minQuality = 0.1;
+		const step = 0.05;
+		let lastBlobSize = Infinity;
+
+		// Use async iteration to avoid blocking the main thread
+		const compress = () => {
+			try {
+				const compressed = canvas.toDataURL('image/jpeg', compressionQuality);
+				const compressedSizeKB = compressed.length / 1024;
+
+				if (compressedSizeKB <= targetSizeKB || compressionQuality <= minQuality || compressedSizeKB >= lastBlobSize) {
+					callback(compressed);
+				} else {
+					compressionQuality -= step;
+					lastBlobSize = compressedSizeKB;
+					// Schedule next iteration asynchronously to avoid blocking
+					setTimeout(compress, 0);
+				}
+			} catch (err) {
+				console.error('Canvas compression error:', err);
+				callback(null);
+			}
+		};
+
+		compress();
+	};
+	img.onerror = function () {
+		console.error('Failed to load image for compression');
+		callback(null);
+	};
+	img.src = dataUrl;
 }
 
 chrome.action.onClicked.addListener(function (tab) {
-	// Create a new tab with the main page
-	chrome.tabs.create({ url: chrome.runtime.getURL("main.html") });
+	// Only fires when no popup is set (new-tab mode)
+	chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
+});
+
+// Apply the correct popup mode on service worker start
+function syncPopupMode() {
+	chrome.storage.sync.get(['viewMode'], function (result) {
+		const mode = result.viewMode || 'new-tab';
+		if (mode === 'popover') {
+			chrome.action.setPopup({ popup: 'main.html?mode=popover' });
+		} else {
+			chrome.action.setPopup({ popup: '' });
+		}
+	});
+}
+
+// Run immediately (when service worker wakes up) and on lifecycle events
+syncPopupMode();
+chrome.runtime.onStartup.addListener(syncPopupMode);
+chrome.runtime.onInstalled.addListener(syncPopupMode);
+
+// React immediately when the user changes the view mode setting
+chrome.storage.onChanged.addListener(function (changes, area) {
+	if (area === 'sync' && changes.viewMode) {
+		const mode = changes.viewMode.newValue || 'new-tab';
+		if (mode === 'popover') {
+			chrome.action.setPopup({ popup: 'main.html?mode=popover' });
+		} else {
+			chrome.action.setPopup({ popup: '' });
+		}
+	}
 });
 
 // ─── Thumbnail storage management ─────────────────────────────────────────────
+//
+// On uninstall: Chrome automatically deletes all chrome.storage.local data
+// when the extension is removed, so all captured thumbnails are cleared
+// without any extra cleanup code needed.
+//
 
 /**
  * Removes all chrome.storage.local entries whose key is not a URL of an
- * existing bookmark.  Safe to call at any time; fires-and-forgets.
+ * existing bookmark. Includes timeout protection to prevent service worker hang.
  */
 function pruneOrphanedThumbnails() {
+	const timeoutId = setTimeout(function () {
+		console.warn('pruneOrphanedThumbnails timed out after 5 seconds');
+	}, 5000);
+
 	chrome.bookmarks.getTree(function (tree) {
+		if (chrome.runtime.lastError) {
+			clearTimeout(timeoutId);
+			console.error('Failed to get bookmarks tree:', chrome.runtime.lastError.message);
+			return;
+		}
+
 		const urls = new Set();
 		function walk(nodes) {
 			for (const node of nodes) {
@@ -109,12 +206,32 @@ function pruneOrphanedThumbnails() {
 				if (node.children) walk(node.children);
 			}
 		}
-		walk(tree);
+
+		try {
+			walk(tree);
+		} catch (err) {
+			clearTimeout(timeoutId);
+			console.error('Error walking bookmark tree:', err);
+			return;
+		}
 
 		chrome.storage.local.get(null, function (items) {
+			if (chrome.runtime.lastError) {
+				clearTimeout(timeoutId);
+				console.error('Failed to get storage:', chrome.runtime.lastError.message);
+				return;
+			}
+
 			const orphaned = Object.keys(items).filter(k => !urls.has(k));
 			if (orphaned.length > 0) {
-				chrome.storage.local.remove(orphaned);
+				chrome.storage.local.remove(orphaned, function () {
+					clearTimeout(timeoutId);
+					if (chrome.runtime.lastError) {
+						console.error('Failed to remove orphaned thumbnails:', chrome.runtime.lastError.message);
+					}
+				});
+			} else {
+				clearTimeout(timeoutId);
 			}
 		});
 	});
@@ -133,20 +250,81 @@ chrome.runtime.onInstalled.addListener(pruneOrphanedThumbnails);
 
 chrome.bookmarks.onCreated.addListener(function (id, bookmarkInfo) {
 	if (!bookmarkInfo.url) return; // folders have no URL
-	// Capture the visible tab as a screenshot
-	chrome.tabs.captureVisibleTab(null, { format: "png" }, function (dataUrl) {
-		if (dataUrl) {
-			// Compress the captured screenshot to meet a target size of 100 KB
-			compressImage(dataUrl, 40, function (compressedDataUrl) {
-				const key = bookmarkInfo.url;
-				const value = compressedDataUrl;
-				// Store the compressed screenshot in local storage
-				chrome.storage.local.set({ [key]: value }, function () {
-					if (chrome.runtime.lastError) {
-						console.error(chrome.runtime.lastError.message);
-					}
-				});
-			});
+
+	// Check storage quota before attempting to store
+	const QUOTA_LIMIT = 9 * 1024 * 1024; // 9 MB (leave 1 MB buffer for other data)
+
+	chrome.storage.local.getBytesInUse(null, function (bytesUsed) {
+		if (bytesUsed > QUOTA_LIMIT) {
+			console.warn('Storage quota exceeded, skipping thumbnail capture');
+			return;
 		}
+
+		// Open a consistent-size popup to capture, matching the manual "Capture" path
+		const windowWidth = 1024;
+		const windowHeight = 683;
+		chrome.windows.create(
+			{
+				url: bookmarkInfo.url,
+				type: 'popup',
+				width: windowWidth,
+				height: windowHeight,
+				focused: false,
+			},
+			function (createdWindow) {
+				if (!createdWindow || chrome.runtime.lastError) {
+					console.warn('Failed to open capture window:', chrome.runtime.lastError?.message);
+					return;
+				}
+				const tabId = createdWindow.tabs[0].id;
+
+				// Timeout: close popup if page takes too long
+				const abortTimer = setTimeout(function () {
+					chrome.tabs.onUpdated.removeListener(listener);
+					chrome.windows.remove(createdWindow.id, function () {});
+				}, 15000);
+
+				function listener(updatedTabId, changeInfo) {
+					if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+					chrome.tabs.onUpdated.removeListener(listener);
+					clearTimeout(abortTimer);
+
+					setTimeout(function () {
+						chrome.tabs.captureVisibleTab(createdWindow.id, { format: 'png' }, function (dataUrl) {
+							if (dataUrl) {
+								compressImage(dataUrl, 40, function (compressedDataUrl) {
+									if (!compressedDataUrl) {
+										console.error('Failed to compress image');
+										chrome.windows.remove(createdWindow.id, function () {});
+										return;
+									}
+
+									const key = bookmarkInfo.url;
+									const value = compressedDataUrl;
+
+									chrome.storage.local.getBytesInUse(null, function (finalBytesUsed) {
+										if (finalBytesUsed + value.length / 1024 > QUOTA_LIMIT) {
+											console.warn('Storage quota would be exceeded, not storing thumbnail');
+										} else {
+											chrome.storage.local.set({ [key]: value }, function () {
+												if (chrome.runtime.lastError) {
+													console.error('Failed to store thumbnail:', chrome.runtime.lastError.message);
+												}
+											});
+										}
+										chrome.windows.remove(createdWindow.id, function () {});
+									});
+								});
+							} else {
+								console.warn('Failed to capture visible tab for bookmark:', bookmarkInfo.url);
+								chrome.windows.remove(createdWindow.id, function () {});
+							}
+						});
+					}, 1000);
+				}
+
+				chrome.tabs.onUpdated.addListener(listener);
+			}
+		);
 	});
 });

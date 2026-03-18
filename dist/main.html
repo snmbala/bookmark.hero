@@ -7,56 +7,67 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<link rel="stylesheet" href="css/styles.css" />
+	<!-- Instantly hide normal layout when in popover mode, before any async JS runs -->
+	<style>
+		[data-mode="popover"] #app-header,
+		[data-mode="popover"] main,
+		[data-mode="popover"] footer,
+		[data-mode="popover"] #duplicate-banner { display: none !important; }
+		[data-mode="popover"] #popover-layout { display: flex !important; }
+	</style>
+	<script src="popover-init.js"></script>
 </head>
 
 <body class="bg-white dark:bg-zinc-950">
 	<!-- Edit Bookmark Modal -->
-	<div id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
-		<div class="bg-white rounded-md p-6 w-96 border border-zinc-200 dark:border-zinc-600 dark:bg-zinc-800">
-			<h3 id="edit-modal-title" class="text-lg font-semibold text-zinc-800 dark:text-zinc-100 block mb-2">
-				Edit Bookmark
-			</h3>
-			<p class="text-sm mb-6 text-zinc-600 dark:text-zinc-400">
-				Make changes to your bookmark here. Click save when you're done.
-			</p>
-			<div class="flex-center flex-col text-sm font-medium gap-3 mb-6">
-				<div class="flex-center gap-4 w-full">
-					<label for="edit-title" class="w-16 flex-end label">Title</label>
-					<input type="text" name="title" id="edit-title" class="flex-start w-64 py-1.5 px-3 input"
-						placeholder="Title" />
-				</div>
-				<div class="flex-center gap-4 w-full">
-					<label for="edit-url" class="w-16 flex-end label">URL</label>
-					<input type="text" name="url" id="edit-url" class="flex py-1.5 px-3 w-64 input"
-						placeholder="URL" />
-				</div>
-				<div class="flex-center gap-4 w-full">
-					<label class="w-16 flex-end label">Folder</label>
-					<div class="relative w-64" id="edit-folder-container">
-						<button id="edit-folder-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
-							class="flex items-center w-full py-1.5 pl-3 pr-7 input cursor-pointer text-sm">
-							<span id="edit-folder-label" class="truncate flex-1 text-left text-zinc-700 dark:text-zinc-200">Select folder</span>
-						</button>
-						<span id="edit-folder-arrow" class="absolute top-1/2 -translate-y-1/2 right-0 -translate-x-1 pointer-events-none text-zinc-500 dark:text-zinc-400 transition-transform duration-150">
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-						</span>
-						<div id="edit-folder-panel" role="listbox" aria-label="Select folder"
-							class="hidden absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-full max-h-56 overflow-y-auto">
+	<div id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title"
+		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
+		<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl">
+			<!-- Header -->
+			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+				<h3 id="edit-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Edit Bookmark</h3>
+				<button id="cancel-edit" aria-label="Close"
+					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+				</button>
+			</div>
+			<!-- Body -->
+			<div class="px-6 py-5">
+				<div class="flex flex-col text-sm font-medium gap-4 mb-6">
+					<div class="flex flex-col gap-1.5">
+						<label for="edit-title" class="label">Title</label>
+						<input type="text" name="title" id="edit-title" class="w-full py-1.5 px-3 input"
+							placeholder="Title" />
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label for="edit-url" class="label">URL</label>
+						<input type="text" name="url" id="edit-url" class="w-full py-1.5 px-3 input"
+							placeholder="URL" />
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label class="label">Folder</label>
+						<div class="relative" id="edit-folder-container">
+							<button id="edit-folder-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
+								class="flex items-center w-full py-1.5 pl-3 pr-7 input cursor-pointer text-sm">
+								<span id="edit-folder-label" class="truncate flex-1 text-left text-zinc-700 dark:text-zinc-200">Select folder</span>
+							</button>
+							<span id="edit-folder-arrow" class="absolute top-1/2 -translate-y-1/2 right-2.5 pointer-events-none text-zinc-500 dark:text-zinc-400 transition-transform duration-150">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+							</span>
+							<div id="edit-folder-panel" role="listbox" aria-label="Select folder"
+								class="hidden absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-full max-h-56 overflow-y-auto">
+							</div>
+							<input type="hidden" id="folder-dropdown" name="folder-dropdown" />
 						</div>
-						<input type="hidden" id="folder-dropdown" name="folder-dropdown" />
 					</div>
 				</div>
-			</div>
 
-			<div class="flex-end gap-2 text-sm">
-				<button id="cancel-edit" class="flex items-center gap-1.5 px-5 py-2 danger">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-					Cancel
-				</button>
-				<button id="save-edit" class="flex items-center gap-1.5 px-5 py-2 primary">
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-					Save Changes
-				</button>
+				<div class="flex justify-end">
+					<button id="save-edit" class="flex items-center gap-1.5 px-5 py-2 text-sm primary">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+						Save Changes
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -74,17 +85,16 @@
 	<!-- Keyboard Shortcuts Modal -->
 	<div id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title"
 		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
-		<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-600 shadow-xl w-[500px] max-h-[80vh] overflow-y-auto">
-			<!-- Header -->
-			<div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-700">
-				<h3 id="shortcuts-modal-title" class="text-base font-semibold text-zinc-800 dark:text-zinc-100">Keyboard Shortcuts</h3>
-				<button id="close-shortcuts-btn" aria-label="Close shortcuts"
-					class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors rounded-md p-0.5 focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400">
+		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-xl mx-4 shadow-2xl overflow-hidden">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+				<h3 id="shortcuts-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Keyboard Shortcuts</h3>
+				<button id="close-shortcuts-btn" aria-label="Close"
+					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
 					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 				</button>
 			</div>
-			<!-- Body -->
-			<div class="px-6 py-4 space-y-5">
+			<div class="overflow-y-auto max-h-[70vh]">
+			<div class="px-6 py-5 space-y-5">
 				<!-- Navigation -->
 				<div>
 					<h4 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Navigation</h4>
@@ -158,16 +168,83 @@
 					</div>
 				</div>
 			</div>
+			</div>
 		</div>
 	</div>
 	<!-- End Keyboard Shortcuts Modal -->
 
+	<!-- First-Run Onboarding Page -->
+	<div id="onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-modal-title"
+		class="fixed inset-0 bg-white dark:bg-zinc-950 z-50 hidden flex flex-col">
+		<!-- Top accent bar -->
+		<div class="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 flex-shrink-0"></div>
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex-shrink-0">
+			<button id="onboarding-back-btn" aria-label="Skip onboarding"
+				class="flex items-center justify-center w-8 h-8 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+			</button>
+			<div class="flex items-center gap-2.5">
+				<div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+				</div>
+				<h2 id="onboarding-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Welcome to Bookmark Hero</h2>
+			</div>
+		</div>
+		<!-- Content -->
+		<div class="flex-1 overflow-y-auto">
+			<div class="max-w-lg mx-auto px-6 py-8">
+				<!-- Intro counts -->
+				<p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+					We found <span id="onboarding-bookmark-count" class="font-semibold text-zinc-800 dark:text-zinc-200">…</span> bookmarks
+					across <span id="onboarding-folder-count" class="font-semibold text-zinc-800 dark:text-zinc-200">…</span> folders — ready to explore.
+				</p>
+
+				<!-- Folder breakdown -->
+				<div class="mb-6">
+					<p class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Your Folders</p>
+					<div id="onboarding-folder-list" class="space-y-0.5 max-h-52 overflow-y-auto pr-0.5">
+						<!-- populated by JS -->
+					</div>
+				</div>
+
+				<!-- Screenshot CTA block -->
+				<div class="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 mb-6">
+					<p class="text-sm text-zinc-600 dark:text-zinc-300 mb-3 leading-relaxed">
+						Capture screenshots now so every bookmark has a visual preview. Each site opens briefly in a background window.
+					</p>
+					<!-- Progress (hidden until capture starts) -->
+					<div id="onboarding-progress-wrap" class="hidden">
+						<div class="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1.5 mb-2 overflow-hidden">
+							<div id="onboarding-progress-bar" class="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+						</div>
+						<p id="onboarding-progress-status" class="text-xs text-zinc-500 dark:text-zinc-400"></p>
+					</div>
+				</div>
+
+				<!-- Actions -->
+				<div class="flex flex-col gap-3">
+					<button id="onboarding-capture-btn"
+						class="flex items-center justify-center gap-2 w-full py-2.5 px-6 primary text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+						<span id="onboarding-capture-label">Capture All Screenshots</span>
+					</button>
+					<button id="onboarding-skip-btn"
+						class="w-full py-2 px-6 text-sm text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+						Skip for now
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- End First-Run Onboarding Page -->
+
 	<!-- Manage Folders Panel -->
 	<div id="manage-panel" role="dialog" aria-modal="true" aria-labelledby="manage-panel-title"
-		class="fixed inset-0 flex items-start justify-center bg-black bg-opacity-30 z-50 hidden overflow-y-auto py-8">
-		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-2xl mx-4 shadow-2xl my-auto">
+		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden py-8">
+		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-2xl mx-4 shadow-2xl flex flex-col max-h-[calc(100vh-4rem)]">
 			<!-- Header -->
-			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex-shrink-0">
 				<div>
 					<h2 id="manage-panel-title" class="text-base font-semibold text-zinc-800 dark:text-zinc-100">Manage Folders</h2>
 					<p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Drag to reorder · Click name to rename · Move bookmarks between folders</p>
@@ -178,7 +255,7 @@
 				</button>
 			</div>
 			<!-- Body: folder list rendered by JS -->
-			<div id="manage-folder-list" class="p-4 space-y-1.5 min-h-[200px]"></div>
+			<div id="manage-folder-list" class="p-4 space-y-1.5 min-h-[200px] overflow-y-auto"></div>
 		</div>
 	</div>
 	<!-- End Manage Folders Panel -->
@@ -246,7 +323,60 @@
 		<div id="folder-list" class="max-w-[1064px] mx-auto w-full"></div>
 	</main>
 
+	<!-- Broken Links Confirm Delete Modal -->
+	<div id="broken-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="broken-confirm-title"
+		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+			<!-- Header -->
+			<div class="flex items-start gap-3 px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+				<div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/30 flex-shrink-0 flex items-center justify-center text-red-500 dark:text-red-400 mt-0.5">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+				</div>
+				<div class="flex-1 min-w-0">
+					<h3 id="broken-confirm-title" class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Delete Broken Links</h3>
+					<p id="broken-confirm-subtitle" class="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+						The following bookmarks are unreachable and will be permanently deleted.
+					</p>
+				</div>
+				<button id="broken-confirm-close" aria-label="Close"
+					class="flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors rounded p-0.5">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+				</button>
+			</div>
+			<!-- List -->
+			<div id="broken-confirm-list" class="overflow-y-auto max-h-64 px-3 py-2 divide-y divide-zinc-100 dark:divide-zinc-800">
+				<!-- populated by JS -->
+			</div>
+			<!-- Footer -->
+			<div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800">
+				<button id="broken-confirm-cancel"
+					class="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-lg transition-colors">
+					Cancel
+				</button>
+				<button id="broken-confirm-delete"
+					class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+					<span id="broken-confirm-delete-label">Delete All</span>
+				</button>
+			</div>
+		</div>
+	</div>
+	<!-- End Broken Links Confirm Delete Modal -->
+
 	<footer class="fixed bottom-4 right-4 flex-center flex-col z-50">
+		<!-- Floating links bottom-left -->
+		<div class="fixed bottom-4 left-4 flex items-center gap-4">
+			<button id="feedback-btn" type="button"
+				class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+				<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+				Feedback
+			</button>
+			<a target="_blank" href="https://www.buymeacoffee.com/snmbala"
+				class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+				<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+				Buy me a Coffee
+			</a>
+		</div>
 		<div class="relative">
 			<p class="flex items-center gap-3">
 				<button id="manage-btn" type="button" aria-label="Manage folders" aria-haspopup="dialog"
@@ -268,154 +398,315 @@
 				</button>
 			</p>
 
-			<div id="settings-modal" role="dialog" aria-label="Settings"
-				class="absolute bottom-8 right-0 flex-col border border-zinc-300 dark:border-zinc-600 shadow-md rounded-md bg-white dark:bg-zinc-800 w-64 p-4 hidden relative overflow-hidden">
-
-				<p class="text-sm text-zinc-700 dark:text-zinc-50 mb-3">
-					Built with love by
-					<a target="_blank" href="https://balamurugan.info" class="font-medium dark:text-zinc-50">Bala</a>
-				</p>
-
-				<!-- Appearance -->
-				<div class="py-2 border-t border-zinc-200 dark:border-zinc-700">
-					<div class="mb-2">
-						<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Appearance</span>
-					</div>
-					<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
-						<button type="button" data-theme="auto" aria-pressed="false"
-							class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
-							Auto
-						</button>
-						<button type="button" data-theme="light" aria-pressed="false"
-							class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] text-sm font-medium leading-5 transition-colors">
-							Light
-						</button>
-						<button type="button" data-theme="dark" aria-pressed="false"
-							class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
-							Dark
+			<div id="settings-modal" role="dialog" aria-modal="true" aria-label="Settings"
+				class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
+				<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl overflow-hidden relative">
+					<!-- Header -->
+					<div id="settings-modal-header" class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+						<h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Settings</h3>
+						<button id="close-settings-btn" aria-label="Close"
+							class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 						</button>
 					</div>
-				</div>
+					<!-- Scrollable body -->
+					<div class="overflow-y-auto max-h-[70vh] px-6 pb-4">
 
-				<!-- Bulk Actions -->
-				<div class="py-2 border-t border-zinc-200 dark:border-zinc-700">
-					<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Thumbnails</span>
-					<button id="bulk-capture-btn"
-						class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-						Capture All Missing
-					</button>
-					<p id="bulk-capture-status" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 hidden"></p>
-				</div>
-
-				<!-- Maintenance -->
-				<div class="py-2 border-t border-zinc-200 dark:border-zinc-700">
-					<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Maintenance</span>
-					<button id="check-broken-btn"
-						class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-						Check Broken Links
-					</button>
-					<p id="check-broken-status" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 hidden"></p>
-					<button id="delete-broken-btn"
-						class="hidden flex items-center gap-2 w-full text-left text-sm px-3 py-2 mt-1 rounded-md bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 transition-colors">
-					</button>
-				</div>
-
-				<!-- Export -->
-				<div class="py-2 border-t border-zinc-200 dark:border-zinc-700">
-					<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Export</span>
-					<div class="flex gap-2">
-						<button id="export-json-btn"
-							class="flex-1 flex items-center justify-center gap-1.5 text-sm px-2 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
-							<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-							JSON
-						</button>
-						<button id="export-html-btn"
-							class="flex-1 flex items-center justify-center gap-1.5 text-sm px-2 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
-							<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-							HTML
-						</button>
-					</div>
-				</div>
-
-				<!-- Storage Usage -->
-				<div class="py-2 border-t border-zinc-200 dark:border-zinc-700">
-					<div class="flex justify-between items-center mb-1">
-						<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Thumbnail Storage</span>
-						<span id="storage-usage-text" class="text-xs text-zinc-500 dark:text-zinc-400">…</span>
-					</div>
-					<div class="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1.5">
-						<div id="storage-usage-bar"
-							class="bg-indigo-500 h-1.5 rounded-full transition-all"
-							style="width: 0%"></div>
-					</div>
-				</div>
-
-				<!-- Links -->
-				<div class="flex items-center gap-4 pt-2 border-t border-zinc-200 dark:border-zinc-700">
-					<button id="feedback-btn" type="button"
-						class="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-						Feedback
-					</button>
-					<a target="_blank" href="https://www.buymeacoffee.com/snmbala"
-						class="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
-						Buy me a Coffee
-					</a>
-				</div>
-
-				<!-- Inline feedback panel -->
-				<div id="feedback-panel" class="hidden absolute inset-0 bg-white dark:bg-zinc-800 rounded-md flex flex-col p-4 z-10">
-					<div class="flex items-center justify-between mb-3">
-						<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Send Feedback</span>
-						<button id="feedback-close-btn" type="button" aria-label="Close feedback"
-							class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</button>
-					</div>
-					<form id="feedback-form" class="flex flex-col gap-2.5">
-						<div>
-							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
-							<input id="feedback-name" type="text" placeholder="Your name"
-								class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
-						</div>
-						<div>
-							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
-							<input id="feedback-email" type="email" placeholder="you@example.com"
-								class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
-						</div>
-						<div>
-							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
-							<div class="relative">
-								<select id="feedback-category"
-									class="w-full py-1.5 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
-									<option value="Suggestion">Suggestion</option>
-									<option value="Bug">Bug</option>
-									<option value="Feature Request">Feature Request</option>
-									<option value="Other">Other</option>
-								</select>
-								<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
-									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-								</span>
+						<!-- Open as (View Mode) -->
+						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Open as</span>
+							<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
+								<button type="button" data-view="new-tab"
+									class="view-mode-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
+									New Tab
+								</button>
+								<button type="button" data-view="popover"
+									class="view-mode-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
+									Popover
+								</button>
 							</div>
 						</div>
-						<div>
-							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
-							<textarea id="feedback-message" rows="3" placeholder="What's on your mind?"
-								class="w-full py-1.5 px-3 text-sm input resize-none"></textarea>
+
+						<!-- Appearance -->
+						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+							<div class="mb-2">
+								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Appearance</span>
+							</div>
+							<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
+								<button type="button" data-theme="auto" aria-pressed="false"
+									class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
+									Auto
+								</button>
+								<button type="button" data-theme="light" aria-pressed="false"
+									class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] text-sm font-medium leading-5 transition-colors">
+									Light
+								</button>
+								<button type="button" data-theme="dark" aria-pressed="false"
+									class="theme-toggle-btn flex-1 flex justify-center items-center px-3 py-1.5 h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
+									Dark
+								</button>
+							</div>
 						</div>
-						<button type="submit" id="feedback-submit"
-							class="w-full py-1.5 px-3 text-sm primary rounded-md">
-							Send
-						</button>
-						<p id="feedback-status" class="text-xs text-center hidden"></p>
-					</form>
+
+						<!-- Thumbnails -->
+						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Thumbnails</span>
+							<button id="bulk-capture-btn"
+								class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+								Capture All Missing
+							</button>
+							<div id="bulk-capture-bar-wrap"
+								class="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1 mt-2 hidden overflow-hidden">
+								<div id="bulk-capture-bar"
+									class="bg-indigo-500 h-1 rounded-full transition-all duration-300"
+									style="width: 0%"></div>
+							</div>
+							<p id="bulk-capture-status" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 hidden"></p>
+						</div>
+
+						<!-- Maintenance -->
+						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Maintenance</span>
+							<button id="check-broken-btn"
+								class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+								Check Broken Links
+							</button>
+							<p id="check-broken-status" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 hidden"></p>
+							<button id="delete-broken-btn"
+								class="hidden flex items-center gap-2 w-full text-left text-sm px-3 py-2 mt-1 rounded-md bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-700 dark:text-red-400 transition-colors">
+							</button>
+						</div>
+
+						<!-- Export -->
+						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Export</span>
+							<div class="flex gap-2">
+								<button id="export-json-btn"
+									class="flex-1 flex items-center justify-center gap-1.5 text-sm px-2 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
+									<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+									JSON
+								</button>
+								<button id="export-html-btn"
+									class="flex-1 flex items-center justify-center gap-1.5 text-sm px-2 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
+									<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+									HTML
+								</button>
+							</div>
+						</div>
+
+						<!-- Built with love by Bala -->
+						<p class="text-xs text-zinc-400 dark:text-zinc-500 text-center pt-3">
+							Built with love by
+							<a target="_blank" href="https://balamurugan.info" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">Bala</a>
+						</p>
+
+					</div>
+
+					<!-- Feedback panel — overlays the entire modal card -->
+					<div id="feedback-panel" class="hidden absolute inset-x-0 top-0 bg-white dark:bg-zinc-800 rounded-xl flex flex-col z-10">
+						<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+							<span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Send Feedback</span>
+							<button id="feedback-close-btn" type="button" aria-label="Close feedback"
+								class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+							</button>
+						</div>
+						<div class="overflow-y-auto px-6 pt-4 pb-2">
+							<form id="feedback-form" class="flex flex-col gap-3">
+								<div>
+									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
+									<input id="feedback-name" type="text" placeholder="Your name"
+										class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+								</div>
+								<div>
+									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
+									<input id="feedback-email" type="email" placeholder="you@example.com"
+										class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+								</div>
+								<div>
+									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
+									<div class="relative">
+										<select id="feedback-category"
+											class="w-full py-1.5 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
+											<option value="Suggestion">Suggestion</option>
+											<option value="Bug">Bug</option>
+											<option value="Feature Request">Feature Request</option>
+											<option value="Other">Other</option>
+										</select>
+										<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+										</span>
+									</div>
+								</div>
+								<div>
+									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
+									<textarea id="feedback-message" rows="3" placeholder="What's on your mind?"
+										class="w-full py-1.5 px-3 text-sm input resize-none"></textarea>
+								</div>
+								<button type="submit" id="feedback-submit"
+									class="w-full py-1.5 px-3 text-sm primary rounded-md">
+									Send
+								</button>
+								<p id="feedback-status" class="text-xs text-center hidden"></p>
+							</form>
+						</div>
+					</div>
+
 				</div>
 			</div>
 		</div>
 	</footer>
+
+	<!-- Popover Layout (shown when ?mode=popover) -->
+	<div id="popover-layout" class="hidden w-full h-full flex flex-col bg-white dark:bg-zinc-950 relative overflow-hidden">
+
+		<!-- Popover Header: Search + Folder Filter -->
+		<div class="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
+			<div class="flex items-stretch flex-1 h-9 input rounded-xl shadow-sm overflow-hidden">
+				<!-- Search -->
+				<div class="flex items-center gap-2 px-3 flex-1 min-w-0">
+					<span class="flex-shrink-0 text-zinc-400">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+					</span>
+					<input type="text" id="popover-search-input" aria-label="Search bookmarks"
+						placeholder="Search bookmarks..."
+						class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400 text-sm" />
+					<button id="popover-clear-search" type="button" aria-label="Clear search"
+						class="hidden cursor-pointer flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+					</button>
+				</div>
+				<!-- Divider -->
+				<div class="self-center w-px h-4 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
+				<!-- Folder filter -->
+				<div class="relative flex-shrink-0" id="popover-filter-container">
+					<button id="popover-filter-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
+						class="flex items-center h-full pl-3 pr-6 gap-1.5 cursor-pointer text-sm w-[130px]">
+						<span class="text-zinc-400 dark:text-zinc-500 flex-shrink-0 pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+						</span>
+						<span id="popover-filter-label" class="text-zinc-500 dark:text-zinc-400 truncate pointer-events-none flex-1 text-left text-xs">All Folders</span>
+					</button>
+					<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+						<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+					</span>
+					<div id="popover-filter-panel" role="listbox" aria-label="Folder filters" aria-multiselectable="true"
+						class="hidden absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-52 max-h-64 overflow-y-auto">
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Bookmark list (single scrollable column) -->
+		<div id="popover-list" class="flex-1 overflow-y-auto">
+			<!-- Populated by JS -->
+		</div>
+
+		<!-- Popover Footer: sticky controls -->
+		<div class="flex items-center gap-3 px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
+			<!-- Left: Feedback + Coffee -->
+			<div class="flex items-center gap-3 flex-1">
+				<button id="popover-feedback-btn" type="button"
+					class="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+					Feedback
+				</button>
+				<a target="_blank" href="https://www.buymeacoffee.com/snmbala"
+					class="flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+					Coffee
+				</a>
+			</div>
+			<!-- Right: actions -->
+			<button id="popover-manage-btn" type="button" aria-label="Manage folders"
+				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+			</button>
+			<button id="popover-settings-btn" type="button" aria-label="Settings"
+				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+			</button>
+		</div>
+
+		<!-- Page: Manage Folders -->
+		<div id="popover-manage-page" class="hidden absolute inset-0 flex flex-col bg-white dark:bg-zinc-950 z-10">
+			<div class="flex items-center gap-2 px-3 py-3 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+				<button id="popover-manage-back" type="button" aria-label="Go back"
+					class="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+				</button>
+				<h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Manage Folders</h2>
+			</div>
+			<div id="popover-manage-folder-list" class="flex-1 overflow-y-auto p-3 space-y-1.5"></div>
+		</div>
+
+		<!-- Page: Settings -->
+		<div id="popover-settings-page" class="hidden absolute inset-0 flex flex-col bg-white dark:bg-zinc-950 z-10">
+			<div class="flex items-center gap-2 px-3 py-3 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+				<button id="popover-settings-back" type="button" aria-label="Go back"
+					class="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+				</button>
+				<h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Settings</h2>
+			</div>
+			<div id="popover-settings-content" class="flex-1 overflow-y-auto"></div>
+		</div>
+
+		<!-- Page: Feedback -->
+		<div id="popover-feedback-page" class="hidden absolute inset-0 flex flex-col bg-white dark:bg-zinc-950 z-10">
+			<div class="flex items-center gap-2 px-3 py-3 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+				<button id="popover-feedback-back" type="button" aria-label="Go back"
+					class="flex items-center justify-center w-7 h-7 rounded-lg text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+				</button>
+				<h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Send Feedback</h2>
+			</div>
+			<div class="flex-1 overflow-y-auto px-4 py-4">
+				<form id="popover-feedback-form" class="flex flex-col gap-3">
+					<div>
+						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
+						<input id="popover-feedback-name" type="text" placeholder="Your name"
+							class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+					</div>
+					<div>
+						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
+						<input id="popover-feedback-email" type="email" placeholder="you@example.com"
+							class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+					</div>
+					<div>
+						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
+						<div class="relative">
+							<select id="popover-feedback-category"
+								class="w-full py-1.5 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
+								<option value="Suggestion">Suggestion</option>
+								<option value="Bug">Bug</option>
+								<option value="Feature Request">Feature Request</option>
+								<option value="Other">Other</option>
+							</select>
+							<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+								<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+							</span>
+						</div>
+					</div>
+					<div>
+						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
+						<textarea id="popover-feedback-message" rows="4" placeholder="What's on your mind?"
+							class="w-full py-1.5 px-3 text-sm input resize-none"></textarea>
+					</div>
+					<button type="submit" id="popover-feedback-submit"
+						class="w-full py-1.5 px-3 text-sm primary rounded-md">
+						Send
+					</button>
+					<p id="popover-feedback-status" class="text-xs text-center hidden"></p>
+				</form>
+			</div>
+		</div>
+		<!-- End Page: Feedback -->
+
+	</div>
+	<!-- End Popover Layout -->
 
 	<script type="module" src="main.js"></script>
 </body>

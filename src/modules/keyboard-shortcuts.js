@@ -133,6 +133,7 @@ function setupShortcutButtons() {
 
 let currentBookmarkIndex = -1;
 let bookmarkCards = [];
+let hasAutoFocused = false;
 
 function updateBookmarkCards() {
     bookmarkCards = Array.from(document.querySelectorAll('.card'));
@@ -140,6 +141,16 @@ function updateBookmarkCards() {
         card.setAttribute('tabindex', '0');
         card.setAttribute('data-bookmark-index', index);
     });
+    // Auto-focus the first card once on initial page load (only if nothing else has focus)
+    if (!hasAutoFocused && bookmarkCards.length > 0) {
+        hasAutoFocused = true;
+        setTimeout(() => {
+            if (bookmarkCards.length > 0 && document.activeElement === document.body) {
+                currentBookmarkIndex = 0;
+                bookmarkCards[0].focus();
+            }
+        }, 150);
+    }
 }
 
 window.updateBookmarkCards = updateBookmarkCards;
@@ -202,7 +213,25 @@ function focusBookmarkCard(index) {
 function handleBookmarkNavigation(event) {
     if (bookmarkCards.length === 0) return false;
     const focusedElement = document.activeElement;
-    if (!focusedElement.classList.contains('card')) return false;
+
+    // If no card is focused, arrow keys enter navigation at the first (or last) card
+    if (!focusedElement.classList.contains('card')) {
+        const tag = focusedElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+        // Don't intercept when a modal/dialog is open
+        const openModal = ['edit-modal', 'settings-modal', 'shortcuts-modal']
+            .map(id => document.getElementById(id))
+            .some(el => el && !el.classList.contains('hidden'));
+        if (openModal) return false;
+
+        event.preventDefault();
+        const targetIndex = (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
+            ? bookmarkCards.length - 1 : 0;
+        currentBookmarkIndex = targetIndex;
+        bookmarkCards[targetIndex].focus();
+        bookmarkCards[targetIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return true;
+    }
 
     let parentContainer = focusedElement.closest('[class*="grid-cols"]')
         || focusedElement.closest('[class*="grid"]')
@@ -315,8 +344,10 @@ function handleEditModalTabNavigation(event) {
 }
 
 function handleSettingsModalTabNavigation(event) {
-    // Full list — previously only had 5 elements, missing all action buttons
     const modalElements = [
+        document.getElementById('close-settings-btn'),
+        document.querySelector('button[data-view="new-tab"]'),
+        document.querySelector('button[data-view="popover"]'),
         document.querySelector('button[data-theme="auto"]'),
         document.querySelector('button[data-theme="light"]'),
         document.querySelector('button[data-theme="dark"]'),
@@ -325,9 +356,6 @@ function handleSettingsModalTabNavigation(event) {
         document.getElementById('delete-broken-btn'),
         document.getElementById('export-json-btn'),
         document.getElementById('export-html-btn'),
-        document.getElementById('open-shortcuts-btn'),
-        document.querySelector('#settings-modal a[href*="tally"]'),
-        document.querySelector('#settings-modal a[href*="buymeacoffee"]')
     ].filter(el => el && !el.disabled && !el.classList.contains('hidden'));
 
     if (modalElements.length === 0) return false;
@@ -413,7 +441,7 @@ function setupKeyboardListeners() {
                 return;
             }
             const settingsModal = document.getElementById("settings-modal");
-            if (settingsModal && !settingsModal.classList.contains("hidden")) {
+            if (settingsModal && !settingsModal.classList.contains("hidden") && !settingsModal.dataset.embedded) {
                 settingsModal.classList.add("hidden");
                 const fp = document.getElementById('feedback-panel');
                 if (fp) {

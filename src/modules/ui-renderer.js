@@ -2,16 +2,32 @@ import { getThumbnailUrl, updateThumbnail } from './thumbnail.js';
 import { iconEl } from './icons.js';
 
 export function highlightText(text, searchTerm) {
-    if (!searchTerm || !text) return text;
+    if (!searchTerm || !text) return escapeHtml(text);
+
+    // Escape HTML in the input text first
+    let escapedText = escapeHtml(text);
     const searchWords = searchTerm.toLowerCase().split(/\s+/).filter(word => word.length > 0);
-    let highlightedText = text;
+
     searchWords.forEach(word => {
-        const regex = new RegExp(`(${word})`, 'gi');
-        highlightedText = highlightedText.replace(regex,
+        // Escape special regex characters in the search word
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedWord})`, 'gi');
+        escapedText = escapedText.replace(regex,
             '<mark class="bg-yellow-200 dark:bg-yellow-400 dark:text-zinc-900 px-0.5 rounded-sm">$1</mark>'
         );
     });
-    return highlightedText;
+    return escapedText;
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, char => map[char]);
 }
 
 export function getDynamicTitle(searchTerm, filterId, currentCount, filterOptions) {
@@ -217,7 +233,9 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
         return wrapper;
     }
 
-    actionRow.appendChild(wrapWithTooltip(recaptureBtn, 'Recapture'));
+    const recaptureWrapper = wrapWithTooltip(recaptureBtn, 'Recapture');
+    recaptureWrapper.classList.add('hidden'); // only reveal once a screenshot exists
+    actionRow.appendChild(recaptureWrapper);
     actionRow.appendChild(wrapWithTooltip(uploadBtn, 'Upload image'));
     actionRow.appendChild(wrapWithTooltip(editBtn, 'Edit'));
     actionRow.appendChild(wrapWithTooltip(deleteBtn, 'Delete'));
@@ -226,7 +244,7 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
     const cardThumbnailSection = document.createElement("a");
     cardThumbnailSection.href = bookmarkNode.url;
     cardThumbnailSection.target = "_blank";
-    cardThumbnailSection.className = "flex-center flex-col gap-3 card-thumbnail w-full h-40 border-b-[1.5px] bg-zinc-100 dark:bg-zinc-700 dark:border-zinc-700";
+    cardThumbnailSection.className = "card-thumbnail relative w-full aspect-[3/2] border-b-[1.5px] border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 overflow-hidden flex items-center justify-center flex-col gap-3";
 
     // Create thumbnail elements synchronously to prevent pop-in during scroll
     const thumbnailImg = document.createElement("img");
@@ -252,11 +270,27 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
     cardThumbnailSection.appendChild(thumbnailImg);
     cardThumbnailSection.appendChild(captureButton);
 
+    // Whenever a real screenshot (data: URL) loads — first capture or re-capture —
+    // switch to full-size display, hide the "Capture" button, show recapture button.
+    thumbnailImg.addEventListener('load', function () {
+        if (thumbnailImg.src && thumbnailImg.src.startsWith('data:')) {
+            thumbnailImg.className = "absolute inset-0 w-full h-full object-cover";
+            captureButton.classList.add('hidden');
+            recaptureWrapper.classList.remove('hidden');
+        }
+    });
+
     // Async: only update src and reveal button — no DOM structure changes
     getThumbnailUrl(bookmarkNode.url, function (thumbnailUrl) {
         thumbnailImg.src = thumbnailUrl;
         if (thumbnailUrl.startsWith("https://www.google.com/s2/favicons?domain=")) {
             captureButton.classList.remove("hidden");
+            thumbnailImg.className = "w-4 h-4";
+        } else {
+            // Screenshot already exists — the load event above will apply full-size classes,
+            // but set them here too so there's no flash before load fires.
+            thumbnailImg.className = "absolute inset-0 w-full h-full object-cover";
+            recaptureWrapper.classList.remove('hidden');
         }
     });
 
@@ -273,7 +307,7 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
     });
 
     const cardDetailsSection = document.createElement("div");
-    cardDetailsSection.className = "flex-center h-24 flex-col bg-white dark:bg-zinc-800 px-2 py-4";
+    cardDetailsSection.className = "flex-1 flex flex-col bg-white dark:bg-zinc-800 px-2 pt-3 pb-3";
 
     const bookmarkLinkDiv = document.createElement("div");
     bookmarkLinkDiv.className = "flex-start w-full h-5";

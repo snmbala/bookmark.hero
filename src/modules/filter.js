@@ -83,7 +83,8 @@ export function populateFilterDropdown(bookmarkTreeNodes, onToggle, getActiveIds
         item.appendChild(label);
         item.appendChild(badge);
 
-        item.addEventListener('click', function () {
+        item.addEventListener('click', function (e) {
+            e.stopPropagation();
             checkbox.checked = !checkbox.checked;
             updateCheckmark(checkbox.checked);
             onToggle(String(option.value), checkbox.checked);

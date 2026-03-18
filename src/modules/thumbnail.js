@@ -1,3 +1,5 @@
+import { compressImage } from './image-utils.js';
+
 // Thumbnail and screenshot functionality
 export function captureScreenshot(url, title, updateCallback) {
     if (!url) {
@@ -82,33 +84,6 @@ export function captureScreenshot(url, title, updateCallback) {
     );
 }
 
-function compressImage(dataUrl, targetSizeKB, callback) {
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = function () {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        canvas.width = 480;
-        canvas.height = 320;
-
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        let compressionQuality = 1.0;
-
-        while (true) {
-            const compressed = canvas.toDataURL("image/jpeg", compressionQuality);
-            const compressedSizeKB = compressed.length / 1024;
-
-            if (compressedSizeKB <= targetSizeKB || compressionQuality <= 0.1) {
-                callback(compressed);
-                break;
-            } else {
-                compressionQuality -= 0.1;
-            }
-        }
-    };
-}
 
 export function getThumbnailUrl(url, callback) {
     const key = url;
@@ -139,4 +114,111 @@ export function updateThumbnail(url, dataUrl) {
             }
         });
     }
+}
+
+export function bulkCaptureInWindow(entries, onProgress, onDone) {
+    if (!entries || entries.length === 0) { onDone(0, 0); return; }
+    if (!chrome.windows || typeof chrome.windows.create !== 'function') {
+        onDone(0, entries.length); return;
+    }
+
+    const total = entries.length;
+    let index = 0, capturedCount = 0, failedCount = 0;
+    let createdWindow = null, tabId = null;
+    let currentListener = null, abortTimer = null, finished = false;
+
+    function removeCurrentListener() {
+        if (abortTimer)      { clearTimeout(abortTimer); abortTimer = null; }
+        if (currentListener) { chrome.tabs.onUpdated.removeListener(currentListener); currentListener = null; }
+    }
+
+    function finish() {
+        if (finished) return;
+        finished = true;
+        removeCurrentListener();
+        chrome.windows.onRemoved.removeListener(onWindowRemovedListener);
+        onDone(capturedCount, failedCount, false);
+        if (createdWindow) chrome.windows.remove(createdWindow.id, function () {});
+    }
+
+    function onWindowRemovedListener(windowId) {
+        if (!createdWindow || windowId !== createdWindow.id) return;
+        removeCurrentListener();
+        finished = true;
+        chrome.windows.onRemoved.removeListener(onWindowRemovedListener);
+        onDone(capturedCount, failedCount + (total - capturedCount - failedCount), true);
+    }
+
+    function listenAndCapture(url, oneBasedIndex) {
+        onProgress('loading', url, oneBasedIndex, total, null);
+
+        abortTimer = setTimeout(function () {
+            removeCurrentListener();
+            failedCount++;
+            onProgress('failed', url, oneBasedIndex, total, null);
+            processNext();
+        }, 10000);
+
+        currentListener = function (updatedTabId, changeInfo) {
+            if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
+            removeCurrentListener();
+            setTimeout(function () {
+                if (finished) return;
+                chrome.tabs.captureVisibleTab(createdWindow.id, { format: 'png' }, function (dataUrl) {
+                    if (chrome.runtime.lastError || !dataUrl) {
+                        failedCount++;
+                        onProgress('failed', url, oneBasedIndex, total, null);
+                        processNext();
+                        return;
+                    }
+                    compressImage(dataUrl, 40, function (compressed) {
+                        chrome.storage.local.set({ [url]: compressed }, function () {
+                            if (chrome.runtime.lastError) console.error(chrome.runtime.lastError.message);
+                        });
+                        capturedCount++;
+                        onProgress('captured', url, oneBasedIndex, total, compressed);
+                        processNext();
+                    });
+                });
+            }, 1000);
+        };
+        chrome.tabs.onUpdated.addListener(currentListener);
+    }
+
+    function processNext() {
+        if (finished) return;
+        if (index >= total) { finish(); return; }
+        const entry = entries[index];
+        const url = entry.bookmark.url;
+        const oneBasedIndex = index + 1;
+        index++;
+        chrome.tabs.update(tabId, { url }, function () {
+            if (chrome.runtime.lastError) {
+                failedCount++;
+                onProgress('failed', url, oneBasedIndex, total, null);
+                processNext();
+                return;
+            }
+            listenAndCapture(url, oneBasedIndex);
+        });
+    }
+
+    chrome.windows.create(
+        {
+            url: entries[0].bookmark.url,
+            type: 'popup',
+            width: 1024,
+            height: 683,
+            left: Math.round((screen.width - 1024) / 2),
+            top: Math.round((screen.height - 683) / 2),
+        },
+        function (win) {
+            if (!win || chrome.runtime.lastError) { onDone(0, total); return; }
+            createdWindow = win;
+            tabId = win.tabs[0].id;
+            index = 1; // windows.create handled entries[0]; processNext starts at entries[1]
+            chrome.windows.onRemoved.addListener(onWindowRemovedListener);
+            listenAndCapture(entries[0].bookmark.url, 1);
+        }
+    );
 }

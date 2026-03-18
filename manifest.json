@@ -9,8 +9,8 @@
    "background": {
       "service_worker": "background.js"
    },
-   "description": "Bookmark Hero is a visual bookmark manager that shows bookmarks with page previews and thumbnails, making it easier to organize and search saved websites.",
-   "host_permissions": [ "\u003Call_urls>" ],
+   "description": "Visual bookmark manager with auto-captured thumbnails and instant search.",
+   "host_permissions": [ "<all_urls>" ],
    "icons": {
       "128": "assets/icons/bookmark.png",
       "16": "assets/icons/bookmark.png",
@@ -20,5 +20,5 @@
    "manifest_version": 3,
    "name": "Bookmark Hero – Visual Bookmark Manager",
    "permissions": [ "bookmarks", "tabs", "unlimitedStorage", "storage", "activeTab" ],
-   "version": "1.5.0"
+   "version": "1.5.4"
 }
