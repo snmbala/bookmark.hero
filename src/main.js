@@ -12,7 +12,8 @@ import {
     collectBookmarks,
     filterBookmarks,
     expandFolderIds,
-    findDuplicateBookmarks
+    findDuplicateBookmarks,
+    findSameDomainGroups
 } from './modules/bookmark-manager.js';
 import {
     createBookmarkCard,
@@ -69,6 +70,10 @@ getCachedBookmarks().then(function (bookmarks) {
         settingsModalOpen = !settingsModal.classList.contains("hidden");
         settingsButton.setAttribute('aria-expanded', settingsModalOpen ? 'true' : 'false');
         if (settingsModalOpen) {
+            // Ensure modal card is visible (may have been hidden when feedback was open)
+            const modalCard = settingsModal.querySelector(':scope > div:first-child');
+            if (modalCard) modalCard.classList.remove("hidden");
+            document.getElementById("feedback-panel")?.classList.add("hidden");
             updateStorageUsage();
             setTimeout(() => {
                 const autoButton = document.querySelector('button[data-theme="auto"]');
@@ -784,7 +789,7 @@ function buildBookmarkManageRow(bmNode, targetFolders) {
     getThumbnailUrl(bmNode.url, function (url) {
         img.src = url;
         if (url.startsWith('https://www.google.com/s2/favicons')) {
-            img.className = 'w-4 h-4';
+            img.className = 'w-5 h-5 object-contain flex-shrink-0';
         } else {
             img.className = 'w-full h-full object-cover';
         }
@@ -984,6 +989,14 @@ function deleteBookmarkWithUndo(bookmarkNode) {
     }, 5000);
 }
 
+function deleteBookmarkDirect(bookmarkNode) {
+    allBookmarks = allBookmarks.filter(b => b.bookmark.id !== bookmarkNode.id);
+    updateView(searchInput.value.trim().toLowerCase());
+    chrome.bookmarks.remove(bookmarkNode.id, function () {
+        chrome.storage.local.remove([bookmarkNode.url]);
+    });
+}
+
 function commitPendingDelete() {
     if (!pendingDelete) return;
     const entry = pendingDelete;
@@ -1026,6 +1039,100 @@ function checkForDuplicates() {
     } else {
         banner.classList.add("hidden");
     }
+}
+
+// ─── Dedup review modal ───────────────────────────────────────────────────────
+let _dedupGroups = [];
+let _dedupIndex = 0;
+
+function openDedupReview() {
+    const groups = findSameDomainGroups(allBookmarks);
+    if (groups.length === 0) {
+        alert('No same-domain bookmarks found.');
+        return;
+    }
+    _dedupGroups = groups;
+    _dedupIndex = 0;
+    _renderDedupGroup();
+    document.getElementById('dedup-review-modal').classList.remove('hidden');
+}
+
+function _renderDedupGroup() {
+    const group = _dedupGroups[_dedupIndex];
+    const total = _dedupGroups.length;
+    document.getElementById('dedup-progress').textContent = `Group ${_dedupIndex + 1} of ${total}`;
+    try {
+        document.getElementById('dedup-domain').textContent = new URL(group[0].bookmark.url).hostname;
+    } catch (e) {
+        document.getElementById('dedup-domain').textContent = '';
+    }
+    const list = document.getElementById('dedup-group-list');
+    list.innerHTML = '';
+    group.forEach(entry => list.appendChild(_createDedupRow(entry)));
+    document.getElementById('dedup-next-btn').textContent = _dedupIndex === total - 1 ? 'Done' : 'Next →';
+}
+
+function _createDedupRow(entry) {
+    const bm = entry.bookmark;
+    const row = document.createElement('div');
+    row.className = 'flex items-start gap-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700';
+    row.dataset.bmId = bm.id;
+
+    const favicon = document.createElement('img');
+    try {
+        favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(bm.url).hostname}&sz=32`;
+    } catch (e) { favicon.src = ''; }
+    favicon.className = 'w-5 h-5 mt-0.5 flex-shrink-0 rounded object-contain';
+    favicon.onerror = function () { this.style.display = 'none'; };
+
+    const info = document.createElement('div');
+    info.className = 'flex-1 min-w-0';
+    const title = document.createElement('p');
+    title.className = 'text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate';
+    title.textContent = bm.title || '(no title)';
+    const url = document.createElement('p');
+    url.className = 'text-xs text-zinc-500 dark:text-zinc-400 truncate';
+    url.textContent = bm.url;
+    const meta = document.createElement('p');
+    meta.className = 'text-xs text-zinc-400 dark:text-zinc-500 mt-0.5';
+    meta.textContent = [
+        entry.folder ? `in ${entry.folder}` : '',
+        bm.dateAdded ? new Date(bm.dateAdded).toLocaleDateString() : ''
+    ].filter(Boolean).join('  ·  ');
+    info.appendChild(title);
+    info.appendChild(url);
+    info.appendChild(meta);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'flex-shrink-0 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 px-2 py-1 rounded border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.onclick = function () {
+        chrome.bookmarks.remove(bm.id, () => {
+            row.remove();
+            const idx = allBookmarks.findIndex(e => e.bookmark.id === bm.id);
+            if (idx !== -1) allBookmarks.splice(idx, 1);
+        });
+    };
+
+    row.appendChild(favicon);
+    row.appendChild(info);
+    row.appendChild(deleteBtn);
+    return row;
+}
+
+function _advanceDedupGroup() {
+    _dedupIndex++;
+    if (_dedupIndex >= _dedupGroups.length) {
+        document.getElementById('dedup-review-modal').classList.add('hidden');
+        bootstrapBookmarks();
+        return;
+    }
+    _renderDedupGroup();
+}
+
+function _closeDedupReview() {
+    document.getElementById('dedup-review-modal').classList.add('hidden');
+    bootstrapBookmarks();
 }
 
 function showDuplicatesView() {
@@ -1590,6 +1697,19 @@ function wireEventListeners() {
         showDuplicatesView();
     });
 
+    // Dedup button (top-left controls)
+    document.getElementById("dedup-btn").addEventListener("click", function () {
+        openDedupReview();
+    });
+
+    // Dedup review modal controls
+    document.getElementById('dedup-review-close').addEventListener('click', _closeDedupReview);
+    document.getElementById('dedup-skip-btn').addEventListener('click', _advanceDedupGroup);
+    document.getElementById('dedup-next-btn').addEventListener('click', _advanceDedupGroup);
+    document.getElementById('dedup-review-modal').addEventListener('click', function (e) {
+        if (e.target === this) _closeDedupReview();
+    });
+
     // Export
     document.getElementById("export-json-btn").addEventListener("click", function () {
         exportAsJSON();
@@ -1605,7 +1725,11 @@ function wireEventListeners() {
     if (feedbackBtn) {
         feedbackBtn.addEventListener("click", function () {
             const settingsModal = document.getElementById("settings-modal");
-            if (settingsModal) settingsModal.classList.remove("hidden");
+            if (settingsModal) {
+                settingsModal.classList.remove("hidden");
+                const modalCard = settingsModal.querySelector(':scope > div:first-child');
+                if (modalCard) modalCard.classList.add("hidden");
+            }
             document.getElementById("feedback-panel").classList.remove("hidden");
         });
     }
@@ -1615,7 +1739,11 @@ function wireEventListeners() {
         feedbackCloseBtn.addEventListener("click", function () {
             document.getElementById("feedback-panel").classList.add("hidden");
             const settingsModal = document.getElementById("settings-modal");
-            if (settingsModal) settingsModal.classList.add("hidden");
+            if (settingsModal) {
+                settingsModal.classList.add("hidden");
+                const modalCard = settingsModal.querySelector(':scope > div:first-child');
+                if (modalCard) modalCard.classList.remove("hidden");
+            }
             resetFeedbackPanel();
         });
     }
@@ -1816,6 +1944,9 @@ function initPopoverMode() {
     settingsPageContent.appendChild(settingsModalEl);
     settingsModalEl.classList.remove('hidden');
 
+    // In popover mode delete immediately — no undo toast
+    window.deleteBookmark = deleteBookmarkDirect;
+
     // Wire popover search (syncs value to main searchInput so existing code works)
     const popoverSearch = document.getElementById('popover-search-input');
     const popoverClear  = document.getElementById('popover-clear-search');
@@ -1836,6 +1967,9 @@ function initPopoverMode() {
     });
 
     // Wire footer buttons
+    document.getElementById('popover-dedup-btn').addEventListener('click', function () {
+        openDedupReview();
+    });
     document.getElementById('popover-manage-btn').addEventListener('click', function () {
         document.getElementById('popover-manage-page').classList.remove('hidden');
         renderManageContent('popover-manage-folder-list');
@@ -2094,9 +2228,16 @@ function buildPopoverCard(bookmarkNode, folderName) {
     const thumb = document.createElement('div');
     thumb.className = 'w-16 h-11 rounded-md flex-shrink-0 bg-zinc-100 dark:bg-zinc-800 overflow-hidden';
     const img = document.createElement('img');
-    img.className = 'w-full h-full object-cover';
     img.alt = '';
-    getThumbnailUrl(bookmarkNode.url, function (url) { img.src = url; });
+    getThumbnailUrl(bookmarkNode.url, function (url) {
+        img.src = url;
+        if (url.startsWith('https://www.google.com/s2/favicons')) {
+            thumb.classList.add('flex', 'items-center', 'justify-center');
+            img.className = 'w-5 h-5 object-contain flex-shrink-0';
+        } else {
+            img.className = 'w-full h-full object-cover';
+        }
+    });
     thumb.appendChild(img);
 
     // Text
@@ -2161,9 +2302,20 @@ function buildPopoverCard(bookmarkNode, folderName) {
 // ─── View Mode Toggle (settings) ─────────────────────────────────────────────
 
 function initViewModeToggle() {
-    chrome.storage.sync.get(['viewMode'], function (result) {
+    chrome.storage.sync.get(['viewMode', 'showOnNewTab'], function (result) {
         updateViewModeUI(result.viewMode || 'new-tab');
+        updateNewTabToggleUI(result.showOnNewTab !== false);
     });
+
+    const newTabToggle = document.getElementById('new-tab-toggle');
+    if (newTabToggle) {
+        newTabToggle.addEventListener('click', function () {
+            const current = newTabToggle.getAttribute('aria-checked') === 'true';
+            const next = !current;
+            chrome.storage.sync.set({ showOnNewTab: next });
+            updateNewTabToggleUI(next);
+        });
+    }
 
     document.querySelectorAll('.view-mode-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -2197,4 +2349,20 @@ function updateViewModeUI(mode) {
             btn.classList.add('bg-white', 'text-zinc-500', 'dark:bg-zinc-700', 'dark:text-zinc-300');
         }
     });
+}
+
+function updateNewTabToggleUI(enabled) {
+    const toggle = document.getElementById('new-tab-toggle');
+    if (!toggle) return;
+    toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    const thumb = toggle.querySelector('span');
+    if (enabled) {
+        toggle.classList.remove('bg-zinc-300', 'dark:bg-zinc-600');
+        toggle.classList.add('bg-indigo-500');
+        if (thumb) { thumb.classList.remove('translate-x-1'); thumb.classList.add('translate-x-4'); }
+    } else {
+        toggle.classList.remove('bg-indigo-500');
+        toggle.classList.add('bg-zinc-300', 'dark:bg-zinc-600');
+        if (thumb) { thumb.classList.remove('translate-x-4'); thumb.classList.add('translate-x-1'); }
+    }
 }

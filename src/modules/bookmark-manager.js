@@ -141,3 +141,21 @@ export function findDuplicateBookmarks(allBookmarks) {
     }
     return Array.from(urlMap.values()).filter(group => group.length > 1);
 }
+
+// Returns groups of bookmarks that share the same domain (hostname)
+// Each group is sorted by dateAdded ascending (oldest first)
+export function findSameDomainGroups(allBookmarks) {
+    const domainMap = new Map();
+    for (const entry of allBookmarks) {
+        const url = entry.bookmark.url;
+        if (!url) continue;
+        try {
+            const hostname = new URL(url).hostname;
+            if (!domainMap.has(hostname)) domainMap.set(hostname, []);
+            domainMap.get(hostname).push(entry);
+        } catch (e) { /* skip invalid URLs */ }
+    }
+    return Array.from(domainMap.values())
+        .filter(group => group.length > 1)
+        .map(group => group.slice().sort((a, b) => (a.bookmark.dateAdded || 0) - (b.bookmark.dateAdded || 0)));
+}

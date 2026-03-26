@@ -285,7 +285,7 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
         thumbnailImg.src = thumbnailUrl;
         if (thumbnailUrl.startsWith("https://www.google.com/s2/favicons?domain=")) {
             captureButton.classList.remove("hidden");
-            thumbnailImg.className = "w-4 h-4";
+            thumbnailImg.className = "w-8 h-8 object-contain flex-shrink-0";
         } else {
             // Screenshot already exists — the load event above will apply full-size classes,
             // but set them here too so there's no flash before load fires.

@@ -1,4 +1,4 @@
-// Keyboard shortcuts for Bookmark Hero
+// Keyboard shortcuts for Thumbmarks
 const DEBUG = false;
 const dbg = (...args) => { if (DEBUG) console.log(...args); };
 

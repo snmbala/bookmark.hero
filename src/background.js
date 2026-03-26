@@ -142,39 +142,32 @@ function compressWithCanvas(dataUrl, targetSizeKB, callback) {
 	img.src = dataUrl;
 }
 
-chrome.action.onClicked.addListener(function (tab) {
-	// Only fires when no popup is set (new-tab mode)
-	chrome.tabs.create({ url: chrome.runtime.getURL('main.html') });
-});
+// Extension icon always opens the popover
+chrome.action.setPopup({ popup: 'main.html?mode=popover' });
 
-// Apply the correct popup mode on service worker start
-function syncPopupMode() {
-	chrome.storage.sync.get(['viewMode'], function (result) {
-		const mode = result.viewMode || 'new-tab';
-		if (mode === 'popover') {
-			chrome.action.setPopup({ popup: 'main.html?mode=popover' });
-		} else {
-			chrome.action.setPopup({ popup: '' });
+// Intercept the new tab page. fires when a tab navigates to chrome://newtab/,
+// which only happens for user-opened new tabs (Ctrl+T, + button), not for
+// links or bookmarks opening in a new tab (those navigate directly to their URL).
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo) {
+	if (changeInfo.url !== 'chrome://newtab/') return;
+	chrome.storage.sync.get(['showOnNewTab'], function (result) {
+		const showOnNewTab = result.showOnNewTab !== false; // Default to true
+		if (showOnNewTab) {
+			chrome.tabs.update(tabId, { url: chrome.runtime.getURL('main.html') });
 		}
 	});
+});
+
+// Apply the correct mode on service worker start
+function initializeExtension() {
+	// Always set popover mode for the action
+	chrome.action.setPopup({ popup: 'main.html?mode=popover' });
 }
 
 // Run immediately (when service worker wakes up) and on lifecycle events
-syncPopupMode();
-chrome.runtime.onStartup.addListener(syncPopupMode);
-chrome.runtime.onInstalled.addListener(syncPopupMode);
-
-// React immediately when the user changes the view mode setting
-chrome.storage.onChanged.addListener(function (changes, area) {
-	if (area === 'sync' && changes.viewMode) {
-		const mode = changes.viewMode.newValue || 'new-tab';
-		if (mode === 'popover') {
-			chrome.action.setPopup({ popup: 'main.html?mode=popover' });
-		} else {
-			chrome.action.setPopup({ popup: '' });
-		}
-	}
-});
+initializeExtension();
+chrome.runtime.onStartup.addListener(initializeExtension);
+chrome.runtime.onInstalled.addListener(initializeExtension);
 
 // ─── Thumbnail storage management ─────────────────────────────────────────────
 //

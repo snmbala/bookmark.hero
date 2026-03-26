@@ -12,7 +12,8 @@
 		[data-mode="popover"] #app-header,
 		[data-mode="popover"] main,
 		[data-mode="popover"] footer,
-		[data-mode="popover"] #duplicate-banner { display: none !important; }
+		[data-mode="popover"] #duplicate-banner,
+		[data-mode="popover"] #top-left-controls { display: none !important; }
 		[data-mode="popover"] #popover-layout { display: flex !important; }
 	</style>
 	<script src="popover-init.js"></script>
@@ -21,7 +22,7 @@
 <body class="bg-white dark:bg-zinc-950">
 	<!-- Edit Bookmark Modal -->
 	<div id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title"
-		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
+		class="fixed inset-0 flex items-center justify-center p-6 bg-black bg-opacity-30 z-50 hidden">
 		<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl">
 			<!-- Header -->
 			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
@@ -48,7 +49,7 @@
 						<label class="label">Folder</label>
 						<div class="relative" id="edit-folder-container">
 							<button id="edit-folder-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
-								class="flex items-center w-full py-1.5 pl-3 pr-7 input cursor-pointer text-sm">
+								class="flex items-center w-full py-2 pl-3 pr-7 input cursor-pointer text-sm">
 								<span id="edit-folder-label" class="truncate flex-1 text-left text-zinc-700 dark:text-zinc-200">Select folder</span>
 							</button>
 							<span id="edit-folder-arrow" class="absolute top-1/2 -translate-y-1/2 right-2.5 pointer-events-none text-zinc-500 dark:text-zinc-400 transition-transform duration-150">
@@ -82,9 +83,45 @@
 	</div>
 	<!-- End Undo Toast -->
 
+	<!-- Dedup Review Modal -->
+	<div id="dedup-review-modal" role="dialog" aria-modal="true" aria-label="Review same-domain bookmarks"
+		class="fixed inset-0 flex items-center justify-center p-6 bg-black bg-opacity-30 z-50 hidden">
+		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg mx-4 shadow-2xl overflow-hidden flex flex-col">
+			<!-- Header -->
+			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex-shrink-0">
+				<div>
+					<h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Same-Domain Bookmarks</h3>
+					<p id="dedup-progress" class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5"></p>
+				</div>
+				<button id="dedup-review-close" aria-label="Close"
+					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+				</button>
+			</div>
+			<!-- Domain label -->
+			<div class="px-6 pt-3 flex-shrink-0">
+				<p id="dedup-domain" class="text-xs font-mono text-indigo-500 dark:text-indigo-400 truncate"></p>
+			</div>
+			<!-- Bookmark list -->
+			<div id="dedup-group-list" class="px-6 py-3 overflow-y-auto flex flex-col gap-2 max-h-[60vh]">
+			</div>
+			<!-- Footer -->
+			<div class="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex-shrink-0">
+				<button id="dedup-skip-btn" type="button"
+					class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+					Skip
+				</button>
+				<button id="dedup-next-btn" type="button"
+					class="text-sm font-medium text-white bg-indigo-500 hover:bg-indigo-600 transition-colors px-4 py-1.5 rounded-lg">
+					Next →
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- Keyboard Shortcuts Modal -->
 	<div id="shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-modal-title"
-		class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
+		class="fixed inset-0 flex items-center justify-center p-6 bg-black bg-opacity-30 z-50 hidden">
 		<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-xl mx-4 shadow-2xl overflow-hidden">
 			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
 				<h3 id="shortcuts-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Keyboard Shortcuts</h3>
@@ -223,7 +260,7 @@
 				</div>
 
 				<!-- Actions -->
-				<div class="flex flex-col gap-3">
+				<div class="flex flex-col gap-4">
 					<button id="onboarding-capture-btn"
 						class="flex items-center justify-center gap-2 w-full py-2.5 px-6 primary text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
 						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
@@ -262,10 +299,10 @@
 
 
 	<header id="app-header" class="w-full flex-center sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm border-b border-transparent transition-colors duration-200">
-		<div class="flex-center container h-20 text-sm">
-			<div class="flex-center w-full h-12 px-auto gap-3 bg-transparent flex-wrap">
+		<div class="flex-center max-w-[1064px] w-full mx-auto h-20 text-sm">
+			<div class="flex items-center w-full h-12 gap-3 bg-transparent">
 				<!-- Combined Search + Folder Filter -->
-				<div class="flex items-stretch w-[860px] h-full input rounded-2xl shadow-md">
+				<div class="flex items-stretch flex-1 min-w-0 h-full input rounded-2xl shadow-md">
 
 					<!-- Search (left) -->
 					<div class="flex items-center gap-2 px-3 flex-1 min-w-0">
@@ -301,9 +338,36 @@
 
 				</div>
 
+
+				<!-- Add Bookmark Button (full-page) -->
+				<button id="add-bookmark-btn" type="button" aria-label="Add bookmark" aria-haspopup="dialog"
+					class="flex items-center gap-2 h-10 px-4 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex-shrink-0">
+					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+					Add Bookmark
+				</button>
+
 			</div>
 		</div>
 	</header>
+
+	<!-- Settings + Manage Buttons (fixed top-left) -->
+	<div id="top-left-controls" class="fixed top-3 left-4 z-50 flex flex-col items-center gap-1">
+		<button id="settings-btn" type="button" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false"
+			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
+			<svg id="settings-icon-svg" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+				<circle cx="12" cy="12" r="3"/>
+			</svg>
+		</button>
+		<button id="manage-btn" type="button" aria-label="Manage folders" aria-haspopup="dialog"
+			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+		</button>
+		<button id="dedup-btn" type="button" aria-label="Delete duplicate bookmarks"
+			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9h8v8H2z"/><path d="M14 3h8v8h-8z"/><path d="M14 17l2 2 4-4"/></svg>
+		</button>
+	</div>
 
 	<!-- Duplicate Banner (hidden by default, shown by JS when dupes found) -->
 	<div id="duplicate-banner" class="hidden w-full bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700">
@@ -366,11 +430,6 @@
 	<footer class="fixed bottom-4 right-4 flex-center flex-col z-50">
 		<!-- Floating links bottom-left -->
 		<div class="fixed bottom-4 left-4 flex items-center gap-4">
-			<button id="feedback-btn" type="button"
-				class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-				<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-				Feedback
-			</button>
 			<a target="_blank" href="https://www.buymeacoffee.com/snmbala"
 				class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
 				<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
@@ -379,28 +438,21 @@
 		</div>
 		<div class="relative">
 			<p class="flex items-center gap-3">
-				<button id="manage-btn" type="button" aria-label="Manage folders" aria-haspopup="dialog"
-					class="text-zinc-500 dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 rounded-full transition-colors">
-					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+				<button id="feedback-btn" type="button"
+					class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+					Feedback
 				</button>
 				<button id="shortcuts-btn" type="button" aria-label="Keyboard shortcuts" aria-haspopup="dialog"
 					class="text-zinc-500 dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 rounded-full transition-colors">
 					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
 				</button>
-				<button id="settings-btn" type="button" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false"
-					class="relative text-zinc-500 dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 focus:outline-none transition-colors">
-					<svg id="settings-icon-svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M20 7h-9"/>
-						<path d="M14 17H5"/>
-						<circle cx="17" cy="17" r="3"/>
-						<circle cx="7" cy="7" r="3"/>
-					</svg>
-				</button>
+
 			</p>
 
 			<div id="settings-modal" role="dialog" aria-modal="true" aria-label="Settings"
-				class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50 hidden">
-				<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl overflow-hidden relative">
+				class="fixed inset-0 flex items-center justify-center p-6 bg-black bg-opacity-30 z-50 hidden">
+				<div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl overflow-hidden relative">
 					<!-- Header -->
 					<div id="settings-modal-header" class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
 						<h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Settings</h3>
@@ -412,17 +464,13 @@
 					<!-- Scrollable body -->
 					<div class="overflow-y-auto max-h-[70vh] px-6 pb-4">
 
-						<!-- Open as (View Mode) -->
+						<!-- New Tab -->
 						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
-							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Open as</span>
-							<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
-								<button type="button" data-view="new-tab"
-									class="view-mode-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
-									New Tab
-								</button>
-								<button type="button" data-view="popover"
-									class="view-mode-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
-									Popover
+							<div class="flex items-center justify-between">
+								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show on new tab</span>
+								<button type="button" id="new-tab-toggle" role="switch" aria-checked="true"
+									class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
+									<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
 								</button>
 							</div>
 						</div>
@@ -504,57 +552,57 @@
 
 					</div>
 
-					<!-- Feedback panel — overlays the entire modal card -->
-					<div id="feedback-panel" class="hidden absolute inset-x-0 top-0 bg-white dark:bg-zinc-800 rounded-xl flex flex-col z-10">
-						<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
-							<span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Send Feedback</span>
-							<button id="feedback-close-btn" type="button" aria-label="Close feedback"
-								class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
-								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-							</button>
-						</div>
-						<div class="overflow-y-auto px-6 pt-4 pb-2">
-							<form id="feedback-form" class="flex flex-col gap-3">
-								<div>
-									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
-									<input id="feedback-name" type="text" placeholder="Your name"
-										class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
-								</div>
-								<div>
-									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
-									<input id="feedback-email" type="email" placeholder="you@example.com"
-										class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
-								</div>
-								<div>
-									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
-									<div class="relative">
-										<select id="feedback-category"
-											class="w-full py-1.5 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
-											<option value="Suggestion">Suggestion</option>
-											<option value="Bug">Bug</option>
-											<option value="Feature Request">Feature Request</option>
-											<option value="Other">Other</option>
-										</select>
-										<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
-											<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-										</span>
-									</div>
-								</div>
-								<div>
-									<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
-									<textarea id="feedback-message" rows="3" placeholder="What's on your mind?"
-										class="w-full py-1.5 px-3 text-sm input resize-none"></textarea>
-								</div>
-								<button type="submit" id="feedback-submit"
-									class="w-full py-1.5 px-3 text-sm primary rounded-md">
-									Send
-								</button>
-								<p id="feedback-status" class="text-xs text-center hidden"></p>
-							</form>
-						</div>
-					</div>
 
 				</div>
+			<!-- Feedback panel — own card, sibling of settings modal card -->
+			<div id="feedback-panel" class="hidden w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-2xl flex flex-col overflow-y-auto">
+				<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800">
+					<span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Send Feedback</span>
+					<button id="feedback-close-btn" type="button" aria-label="Close feedback"
+						class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+					</button>
+				</div>
+				<div class="px-6 py-6 overflow-y-auto">
+					<form id="feedback-form" class="flex flex-col gap-4">
+						<div>
+							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
+							<input id="feedback-name" type="text" placeholder="Your name"
+								class="w-full py-2 px-3 text-sm input" autocomplete="off" />
+						</div>
+						<div>
+							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
+							<input id="feedback-email" type="email" placeholder="you@example.com"
+								class="w-full py-2 px-3 text-sm input" autocomplete="off" />
+						</div>
+						<div>
+							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
+							<div class="relative">
+								<select id="feedback-category"
+									class="w-full py-2 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
+									<option value="Suggestion">Suggestion</option>
+									<option value="Bug">Bug</option>
+									<option value="Feature Request">Feature Request</option>
+									<option value="Other">Other</option>
+								</select>
+								<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+								</span>
+							</div>
+						</div>
+						<div>
+							<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
+							<textarea id="feedback-message" rows="3" placeholder="What's on your mind?"
+								class="w-full py-2 px-3 text-sm input resize-none"></textarea>
+						</div>
+						<button type="submit" id="feedback-submit"
+							class="w-full py-2.5 px-3 text-sm primary rounded-md">
+							Send
+						</button>
+						<p id="feedback-status" class="text-xs text-center hidden"></p>
+					</form>
+				</div>
+			</div>
 			</div>
 		</div>
 	</footer>
@@ -620,13 +668,17 @@
 				</a>
 			</div>
 			<!-- Right: actions -->
+			<button id="popover-dedup-btn" type="button" aria-label="Delete duplicate bookmarks"
+				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
+				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9h8v8H2z"/><path d="M14 3h8v8h-8z"/><path d="M14 17l2 2 4-4"/></svg>
+			</button>
 			<button id="popover-manage-btn" type="button" aria-label="Manage folders"
 				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
-				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
 			</button>
 			<button id="popover-settings-btn" type="button" aria-label="Settings"
 				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
-				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
 			</button>
 		</div>
 
@@ -664,22 +716,22 @@
 				<h2 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Send Feedback</h2>
 			</div>
 			<div class="flex-1 overflow-y-auto px-4 py-4">
-				<form id="popover-feedback-form" class="flex flex-col gap-3">
+				<form id="popover-feedback-form" class="flex flex-col gap-4">
 					<div>
 						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Name <span class="text-red-400">*</span></label>
 						<input id="popover-feedback-name" type="text" placeholder="Your name"
-							class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+							class="w-full py-2 px-3 text-sm input" autocomplete="off" />
 					</div>
 					<div>
 						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Email <span class="text-zinc-400">(optional)</span></label>
 						<input id="popover-feedback-email" type="email" placeholder="you@example.com"
-							class="w-full py-1.5 px-3 text-sm input" autocomplete="off" />
+							class="w-full py-2 px-3 text-sm input" autocomplete="off" />
 					</div>
 					<div>
 						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Category</label>
 						<div class="relative">
 							<select id="popover-feedback-category"
-								class="w-full py-1.5 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
+								class="w-full py-2 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
 								<option value="Suggestion">Suggestion</option>
 								<option value="Bug">Bug</option>
 								<option value="Feature Request">Feature Request</option>
@@ -693,10 +745,10 @@
 					<div>
 						<label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Message <span class="text-red-400">*</span></label>
 						<textarea id="popover-feedback-message" rows="4" placeholder="What's on your mind?"
-							class="w-full py-1.5 px-3 text-sm input resize-none"></textarea>
+							class="w-full py-2 px-3 text-sm input resize-none"></textarea>
 					</div>
 					<button type="submit" id="popover-feedback-submit"
-						class="w-full py-1.5 px-3 text-sm primary rounded-md">
+						class="w-full py-2.5 px-3 text-sm primary rounded-md">
 						Send
 					</button>
 					<p id="popover-feedback-status" class="text-xs text-center hidden"></p>
