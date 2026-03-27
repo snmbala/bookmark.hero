@@ -3,6 +3,87 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Moving ambient background glow */
+body {
+	position: relative;
+	overflow-x: hidden;
+	isolation: isolate;
+}
+
+body::before,
+body::after {
+	content: "";
+	position: fixed;
+	inset: -18vmax;
+	pointer-events: none;
+	z-index: -1;
+	will-change: transform, opacity;
+	filter: blur(50px);
+}
+
+body::before {
+	background:
+		radial-gradient(36rem 36rem at 20% 25%, rgba(99, 102, 241, 0.22), transparent 62%),
+		radial-gradient(30rem 30rem at 82% 18%, rgba(56, 189, 248, 0.18), transparent 64%),
+		radial-gradient(28rem 28rem at 72% 78%, rgba(244, 114, 182, 0.16), transparent 66%);
+	animation: glow-drift-a 28s ease-in-out infinite alternate;
+	opacity: 0.85;
+}
+
+body::after {
+	background:
+		radial-gradient(34rem 34rem at 76% 30%, rgba(139, 92, 246, 0.16), transparent 64%),
+		radial-gradient(28rem 28rem at 28% 82%, rgba(14, 165, 233, 0.14), transparent 66%);
+	animation: glow-drift-b 34s ease-in-out infinite alternate;
+	opacity: 0.6;
+}
+
+html.dark body::before {
+	background:
+		radial-gradient(40rem 40rem at 18% 24%, rgba(99, 102, 241, 0.3), transparent 62%),
+		radial-gradient(32rem 32rem at 84% 16%, rgba(56, 189, 248, 0.2), transparent 64%),
+		radial-gradient(30rem 30rem at 74% 80%, rgba(16, 185, 129, 0.16), transparent 66%);
+	opacity: 0.72;
+}
+
+html.dark body::after {
+	background:
+		radial-gradient(34rem 34rem at 76% 28%, rgba(168, 85, 247, 0.2), transparent 64%),
+		radial-gradient(30rem 30rem at 26% 84%, rgba(59, 130, 246, 0.14), transparent 68%);
+	opacity: 0.5;
+}
+
+@keyframes glow-drift-a {
+	0% {
+		transform: translate3d(-1.5%, -1%, 0) scale(1);
+	}
+	50% {
+		transform: translate3d(1.5%, 1.2%, 0) scale(1.03);
+	}
+	100% {
+		transform: translate3d(0.5%, 2%, 0) scale(1.01);
+	}
+}
+
+@keyframes glow-drift-b {
+	0% {
+		transform: translate3d(2%, -0.5%, 0) scale(1.02);
+	}
+	50% {
+		transform: translate3d(-1.5%, 1.8%, 0) scale(1);
+	}
+	100% {
+		transform: translate3d(-0.8%, -1.6%, 0) scale(1.04);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body::before,
+	body::after {
+		animation: none;
+	}
+}
+
 .flex-center {
 	@apply flex justify-center items-center;
 }
@@ -57,17 +138,21 @@
 }
 
 .card {
-	@apply relative min-w-60 flex flex-col border-[1.5px] bg-white border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 hover:shadow-md hover:shadow-indigo-100 dark:hover:shadow-indigo-700 rounded-md overflow-hidden;
+	@apply relative min-w-0 flex flex-col border-0 bg-white dark:bg-zinc-800 rounded-md overflow-hidden transition-transform duration-200 ease-out;
+  }
+
+  .card:hover {
+	@apply scale-[1.03] shadow-lg shadow-black/10 dark:shadow-black/40;
   }
 
   .card:hover,
   .card:focus,
   .card:focus-within {
-	@apply outline-none ring-2 ring-zinc-700 dark:ring-zinc-400 ring-offset-2 dark:ring-offset-zinc-800;
+	@apply outline-none ring-0;
   }
 
   .input {
-	@apply rounded-md border-[1.5px] border-zinc-200 bg-white dark:border-zinc-600 dark:bg-zinc-800 focus:outline-none focus-within:border-zinc-500 dark:focus-within:border-zinc-400 focus-within:bg-zinc-50 dark:focus-within:bg-zinc-900 text-zinc-900 dark:text-white;
+	@apply rounded-md border-[1.5px] border-zinc-200 bg-white dark:border-zinc-600 dark:bg-zinc-800 focus:outline-none focus-within:outline-none focus-within:bg-zinc-50 dark:focus-within:bg-zinc-900 text-zinc-900 dark:text-white;
   }
 
   .label{
@@ -94,6 +179,114 @@ h1[tabindex]:focus, h2[tabindex]:focus, h3[tabindex]:focus {
 /* Ensure headings are focusable with proper cursor */
 h1[tabindex], h2[tabindex], h3[tabindex] {
 	@apply cursor-pointer;
+}
+
+/* Search mode tab buttons */
+.search-mode-btn {
+	@apply text-zinc-500 dark:text-zinc-400 cursor-pointer;
+}
+.search-mode-btn[aria-pressed="true"] {
+	@apply bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100;
+}
+.search-mode-btn[aria-pressed="false"]:hover {
+	@apply text-zinc-700 dark:text-zinc-300;
+}
+
+/* AI chat message bubbles */
+.ai-msg-user {
+	@apply self-end bg-zinc-800 dark:bg-zinc-700 text-zinc-100 italic rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%] text-[15px] leading-7;
+}
+.ai-msg-user-image {
+	@apply block rounded-lg mb-2 max-w-[260px] max-h-[220px] object-cover border border-white/20;
+}
+.ai-msg-ai {
+	@apply self-start bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[80%] text-[15px] leading-7;
+}
+
+/* Keep AI/Web/Bookmark inputs on the same vertical anchor before chat starts */
+#ai-chat-messages:empty {
+	display: none;
+}
+
+/* AI Chat active — full chat layout */
+body.ai-chat-active #greeting-text {
+	@apply hidden;
+}
+body.ai-chat-active #hero-section {
+	@apply pt-4 pb-0;
+	min-height: 0 !important;
+}
+body.ai-chat-active #ai-chat-messages {
+	overflow-y: auto;
+	height: calc(100vh - 115px);
+	max-height: none !important;
+	@apply mb-0 pb-28;
+}
+body.ai-chat-active #ai-input-inline {
+	@apply hidden;
+}
+body.ai-chat-active #ai-provider-label {
+	@apply hidden;
+}
+/* AI response — plain readable prose, no bubble */
+body.ai-chat-active .ai-msg-ai {
+	@apply bg-transparent dark:bg-transparent px-0 py-1 max-w-[90%] rounded-none;
+}
+
+/* Markdown prose styles inside AI response */
+.ai-msg-ai p {
+	@apply mb-4 text-base leading-8 text-zinc-700 dark:text-zinc-300;
+}
+.ai-msg-ai p:last-child { @apply mb-0; }
+.ai-msg-ai h1 { @apply text-xl font-bold mb-2 mt-4 text-zinc-900 dark:text-zinc-100; }
+.ai-msg-ai h2 { @apply text-lg font-semibold mb-2 mt-3 text-zinc-900 dark:text-zinc-100; }
+.ai-msg-ai h3 { @apply text-base font-semibold mb-1 mt-3 text-zinc-900 dark:text-zinc-100; }
+.ai-msg-ai strong { @apply font-semibold text-zinc-900 dark:text-zinc-100; }
+.ai-msg-ai em { @apply italic; }
+.ai-msg-ai ul {
+	@apply list-disc list-outside mb-4 space-y-2 pl-6 text-base leading-8 text-zinc-700 dark:text-zinc-300;
+}
+.ai-msg-ai ol {
+	@apply list-decimal list-outside mb-4 space-y-2 pl-6 text-base leading-8 text-zinc-700 dark:text-zinc-300;
+}
+.ai-msg-ai li { @apply leading-8; }
+.ai-msg-ai code {
+	@apply font-mono text-[13px] bg-zinc-100 dark:bg-zinc-700 text-indigo-600 dark:text-indigo-300 px-1.5 py-0.5 rounded;
+}
+.ai-msg-ai pre {
+	@apply bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3.5 mb-3 overflow-x-auto;
+}
+.ai-msg-ai pre code {
+	@apply bg-transparent text-zinc-800 dark:text-zinc-200 px-0 py-0 leading-7;
+}
+.ai-msg-ai hr {
+	@apply border-zinc-200 dark:border-zinc-700 my-3;
+}
+/* Typing indicator */
+.ai-typing {
+	@apply inline-flex gap-1;
+}
+/* Blinking cursor while streaming */
+.ai-msg-ai.is-streaming::after {
+	content: '▋';
+	display: inline;
+	margin-left: 1px;
+	animation: ai-cursor-blink 0.7s step-end infinite;
+	color: currentColor;
+	opacity: 0.8;
+}
+@keyframes ai-cursor-blink {
+	0%, 100% { opacity: 0.8; }
+	50% { opacity: 0; }
+}
+@keyframes ai-blink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.3; }
+}
+
+/* Engine option active */
+.engine-option[aria-selected="true"] {
+	@apply bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-200;
 }
 
 /* Focus styles for settings button — no padding to avoid layout shift */

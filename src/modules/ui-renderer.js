@@ -244,7 +244,7 @@ export function createBookmarkCard(bookmarkNode, searchTerm, folderName, allBook
     const cardThumbnailSection = document.createElement("a");
     cardThumbnailSection.href = bookmarkNode.url;
     cardThumbnailSection.target = "_blank";
-    cardThumbnailSection.className = "card-thumbnail relative w-full aspect-[3/2] border-b-[1.5px] border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-700 overflow-hidden flex items-center justify-center flex-col gap-3";
+    cardThumbnailSection.className = "card-thumbnail relative w-full aspect-[3/2] bg-zinc-100 dark:bg-zinc-700 overflow-hidden flex items-center justify-center flex-col gap-3";
 
     // Create thumbnail elements synchronously to prevent pop-in during scroll
     const thumbnailImg = document.createElement("img");

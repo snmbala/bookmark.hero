@@ -1,4 +1,4 @@
-# Bookmark Hero 🦸‍♂️
+# Thumbmark 🦸‍♂️
 
 A powerful Chrome extension that revolutionizes how you manage your bookmarks with style.
 
@@ -27,7 +27,7 @@ A powerful Chrome extension that revolutionizes how you manage your bookmarks wi
 ## 🚀 Getting Started
 
 1. Install from Chrome Web Store (coming soon)
-2. Click the Bookmark Hero icon in your toolbar
+2. Click the Thumbmark icon in your toolbar
 3. Start enjoying a better bookmarking experience!
 
 ## 💡 Usage Tips

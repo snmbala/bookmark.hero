@@ -2,17 +2,25 @@
 <html lang="en">
 
 <head>
-	<title>Bookmark hero</title>
+	<title>Thumbmark</title>
 
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<link rel="stylesheet" href="css/styles.css" />
 	<!-- Instantly hide normal layout when in popover mode, before any async JS runs -->
 	<style>
+		html[data-mode="popover"],
+		html[data-mode="popover"] body {
+			width: 380px;
+			height: 560px;
+			overflow: hidden;
+			margin: 0;
+		}
 		[data-mode="popover"] #app-header,
 		[data-mode="popover"] main,
 		[data-mode="popover"] footer,
 		[data-mode="popover"] #duplicate-banner,
+		[data-mode="popover"] #top-right-controls,
 		[data-mode="popover"] #top-left-controls { display: none !important; }
 		[data-mode="popover"] #popover-layout { display: flex !important; }
 	</style>
@@ -74,6 +82,60 @@
 	</div>
 	<!-- End Edit Bookmark Modal -->
 
+	<!-- Add Bookmark Modal -->
+	<div id="add-modal" role="dialog" aria-modal="true" aria-labelledby="add-modal-title"
+		class="fixed inset-0 flex items-center justify-center p-6 bg-black bg-opacity-30 z-50 hidden">
+		<div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-sm mx-4 shadow-2xl">
+			<!-- Header -->
+			<div class="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+				<h3 id="add-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Add Bookmark</h3>
+				<button id="cancel-add" aria-label="Close"
+					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+				</button>
+			</div>
+			<!-- Body -->
+			<div class="px-6 py-5">
+				<div class="flex flex-col text-sm font-medium gap-4 mb-4">
+					<div class="flex flex-col gap-1.5">
+						<label for="add-title" class="label">Title</label>
+						<input type="text" name="title" id="add-title" class="w-full py-1.5 px-3 input"
+							placeholder="Title" />
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label for="add-url" class="label">URL</label>
+						<input type="text" name="url" id="add-url" class="w-full py-1.5 px-3 input"
+							placeholder="https://" />
+					</div>
+					<div class="flex flex-col gap-1.5">
+						<label class="label">Folder</label>
+						<div class="relative" id="add-folder-container">
+							<button id="add-folder-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
+								class="flex items-center w-full py-2 pl-3 pr-7 input cursor-pointer text-sm">
+								<span id="add-folder-label" class="truncate flex-1 text-left text-zinc-700 dark:text-zinc-200">Select folder</span>
+							</button>
+							<span id="add-folder-arrow" class="absolute top-1/2 -translate-y-1/2 right-2.5 pointer-events-none text-zinc-500 dark:text-zinc-400 transition-transform duration-150">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+							</span>
+							<div id="add-folder-panel" role="listbox" aria-label="Select folder"
+								class="hidden absolute top-full left-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-full max-h-56 overflow-y-auto">
+							</div>
+							<input type="hidden" id="add-folder-dropdown" name="add-folder-dropdown" />
+						</div>
+					</div>
+				</div>
+				<p id="add-error" class="hidden text-xs text-red-500 mb-3"></p>
+				<div class="flex justify-end">
+					<button id="save-add" class="flex items-center gap-1.5 px-5 py-2 text-sm primary">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+						Add Bookmark
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- End Add Bookmark Modal -->
+
 	<!-- Undo Delete Toast -->
 	<div id="undo-toast" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 hidden">
 		<div class="flex items-center gap-3 bg-zinc-800 dark:bg-zinc-700 text-white text-sm px-4 py-3 rounded-lg shadow-lg">
@@ -92,6 +154,28 @@
 				<div>
 					<h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Same-Domain Bookmarks</h3>
 					<p id="dedup-progress" class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5"></p>
+				<!-- Top-left controls -->
+				<div id="top-left-controls" class="fixed top-4 left-5 z-50">
+					<div class="flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+						<span class="text-xs text-zinc-600 dark:text-zinc-300">New Tab</span>
+						<button type="button" id="new-tab-top-toggle" role="switch" aria-checked="true"
+							class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
+							<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
+						</button>
+					</div>
+				</div>
+
+				<!-- Top-left controls -->
+				<div id="top-left-controls" class="fixed top-4 left-5 z-50">
+					<div class="flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+						<span class="text-xs text-zinc-600 dark:text-zinc-300">New Tab</span>
+						<button type="button" id="new-tab-top-toggle" role="switch" aria-checked="true"
+							class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
+							<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
+						</button>
+					</div>
+				</div>
+
 				</div>
 				<button id="dedup-review-close" aria-label="Close"
 					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
@@ -225,7 +309,7 @@
 				<div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
 					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
 				</div>
-				<h2 id="onboarding-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Welcome to Bookmark Hero</h2>
+				<h2 id="onboarding-modal-title" class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Welcome to Thumbmark</h2>
 			</div>
 		</div>
 		<!-- Content -->
@@ -298,72 +382,195 @@
 	<!-- End Manage Folders Panel -->
 
 
-	<header id="app-header" class="w-full flex-center sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm border-b border-transparent transition-colors duration-200">
-		<div class="flex-center max-w-[1064px] w-full mx-auto h-20 text-sm">
-			<div class="flex items-center w-full h-12 gap-3 bg-transparent">
-				<!-- Combined Search + Folder Filter -->
-				<div class="flex items-stretch flex-1 min-w-0 h-full input rounded-2xl shadow-md">
-
-					<!-- Search (left) -->
-					<div class="flex items-center gap-2 px-3 flex-1 min-w-0">
-						<span id="search-icon" class="flex-shrink-0 text-zinc-400 transition-colors">
-							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-						</span>
-						<input type="text" class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400"
-							id="search-input" aria-label="Search bookmarks" placeholder="Search Bookmarks..." />
-						<button id="clear-search" type="button" aria-label="Clear search" class="hidden cursor-pointer flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-						</button>
-					</div>
-
-					<!-- Divider -->
-					<div class="self-center w-px h-5 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
-
-					<!-- Folder Filter (right) -->
-					<div class="relative flex-shrink-0" id="filter-container">
-						<button id="filter-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by folder"
-							class="flex items-center h-full pl-3 pr-7 gap-1.5 cursor-pointer text-sm w-[160px]">
-							<span class="text-zinc-400 dark:text-zinc-500 flex-shrink-0 pointer-events-none">
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
-							</span>
-							<span id="filter-label" class="text-zinc-500 dark:text-zinc-400 truncate pointer-events-none flex-1 text-left">All Folders</span>
-						</button>
-						<span id="filter-dropdown-arrow" class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none transition-transform duration-150 text-zinc-400 dark:text-zinc-500">
-							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-						</span>
-						<div id="filter-panel" role="listbox" aria-label="Folder filters" aria-multiselectable="true"
-							class="hidden absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-64 max-h-72 overflow-y-auto">
-						</div>
-					</div>
-
-				</div>
-
-
-				<!-- Add Bookmark Button (full-page) -->
-				<button id="add-bookmark-btn" type="button" aria-label="Add bookmark" aria-haspopup="dialog"
-					class="flex items-center gap-2 h-10 px-4 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 flex-shrink-0">
-					<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-					Add Bookmark
-				</button>
-
-			</div>
-		</div>
-	</header>
-
-	<!-- Settings + Manage Buttons (fixed top-left) -->
-	<div id="top-left-controls" class="fixed top-3 left-4 z-50 flex flex-col items-center gap-1">
-		<button id="settings-btn" type="button" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false"
+	<!-- Top-right controls -->
+	<div id="top-right-controls" class="fixed top-4 right-5 z-50 flex items-center gap-1">
+		<button id="add-bookmark-btn" type="button" aria-label="Add bookmark" aria-haspopup="dialog" title="Add bookmark"
 			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
-			<svg id="settings-icon-svg" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-				<circle cx="12" cy="12" r="3"/>
-			</svg>
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
 		</button>
-		<button id="manage-btn" type="button" aria-label="Manage folders" aria-haspopup="dialog"
+		<button id="manage-btn" type="button" aria-label="Manage folders" aria-haspopup="dialog" title="Manage folders"
 			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
 			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
 		</button>
+		<button id="bulk-capture-topleft-btn" type="button" aria-label="Capture missing thumbnails" title="Capture missing thumbnails"
+			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+		</button>
+		<button id="settings-btn" type="button" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false" title="Settings"
+			class="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:hover:text-zinc-100 transition-colors focus:outline-none">
+			<svg id="settings-icon-svg" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+		</button>
 	</div>
+
+	<header id="app-header" class="w-full">
+		<div id="hero-section" class="max-w-2xl mx-auto px-6 pt-[15vh] pb-6 text-center transition-all duration-300 min-h-[200px]">
+			<!-- Greeting -->
+			<p id="greeting-text" class="text-3xl font-semibold text-zinc-800 dark:text-zinc-100 mb-6 select-none"></p>
+
+			<!-- Search mode tabs -->
+			<div class="flex items-center justify-center gap-1 mb-4">
+				<button type="button" data-search-mode="bookmarks" aria-pressed="true"
+					class="search-mode-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+					Bookmarks
+				</button>
+				<button type="button" data-search-mode="web" aria-pressed="false"
+					class="search-mode-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+					Web
+				</button>
+				<button type="button" data-search-mode="ai" aria-pressed="false"
+					class="search-mode-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M19 14l1 2.5L22.5 18 20 19l-1 2.5L18 19l-2.5-1 2.5-1.5L19 14z"/><path d="M5 14l.8 2L8 17l-2.2.9L5 20l-.8-2.1L2 17l2.2-1 .8-2z"/></svg>
+					AI
+				</button>
+			</div>
+
+			<!-- ═══ Bookmark search bar ═══ -->
+			<div id="bookmark-search-wrap" class="flex items-stretch h-14 !rounded-full input shadow-md text-sm">
+				<div class="flex items-center gap-3 px-5 flex-1 min-w-0">
+					<span id="search-icon" class="flex-shrink-0 text-zinc-400 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+					</span>
+					<input type="text" class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400 text-base"
+						id="search-input" aria-label="Search bookmarks" placeholder="Search bookmarks..." autofocus />
+					<button id="clear-search" type="button" aria-label="Clear search" class="hidden cursor-pointer flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+					</button>
+				</div>
+				<div id="filter-divider" class="self-center w-px h-7 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
+				<div class="relative flex-shrink-0" id="filter-container">
+					<button id="filter-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by folder"
+						class="flex items-center h-full pl-2.5 pr-8 gap-2 cursor-pointer text-sm w-[172px] rounded-r-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+						<span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 flex-shrink-0 pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+						</span>
+						<span id="filter-label" class="text-zinc-500 dark:text-zinc-400 truncate pointer-events-none flex-1 text-left font-medium">All Folders</span>
+					</button>
+					<span id="filter-dropdown-arrow" class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none transition-transform duration-150 text-zinc-400 dark:text-zinc-500">
+						<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+					</span>
+					<div id="filter-panel" role="listbox" aria-label="Folder filters" aria-multiselectable="true"
+						class="hidden absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-md shadow-lg w-64 max-h-72 overflow-y-auto">
+					</div>
+				</div>
+			</div>
+
+			<!-- ═══ Web search bar ═══ -->
+			<div id="web-search-wrap" class="hidden flex items-stretch h-14 !rounded-full input shadow-md text-sm">
+				<div class="flex items-center gap-3 px-5 flex-1 min-w-0">
+					<!-- Search engine icon (clickable to change) -->
+					<div class="relative flex-shrink-0" id="engine-selector">
+						<button id="engine-btn" type="button" aria-label="Select search engine" title="Change search engine"
+							class="flex items-center justify-center w-7 h-7 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+							<img id="engine-icon" src="https://www.google.com/favicon.ico" alt="Google" width="18" height="18" class="rounded-sm" />
+						</button>
+						<div id="engine-panel" class="hidden absolute top-full left-0 mt-2 z-50 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 rounded-lg shadow-lg w-44 py-1">
+							<button type="button" data-engine="google" class="engine-option flex items-center gap-2.5 w-full px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
+								<img src="https://www.google.com/favicon.ico" width="16" height="16" alt="" class="rounded-sm" /> Google
+							</button>
+							<button type="button" data-engine="bing" class="engine-option flex items-center gap-2.5 w-full px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
+								<img src="https://www.bing.com/favicon.ico" width="16" height="16" alt="" class="rounded-sm" /> Bing
+							</button>
+							<button type="button" data-engine="duckduckgo" class="engine-option flex items-center gap-2.5 w-full px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
+								<img src="https://duckduckgo.com/favicon.ico" width="16" height="16" alt="" class="rounded-sm" /> DuckDuckGo
+							</button>
+							<button type="button" data-engine="brave" class="engine-option flex items-center gap-2.5 w-full px-3 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
+								<img src="https://brave.com/static-assets/images/brave-favicon.png" width="16" height="16" alt="" class="rounded-sm" /> Brave
+							</button>
+						</div>
+					</div>
+					<input type="text" class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400 text-base"
+						id="web-search-input" aria-label="Search the web" placeholder="Search Google..." />
+					<button id="web-clear-search" type="button" aria-label="Clear search" class="hidden cursor-pointer flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+					</button>
+				</div>
+			</div>
+
+			<!-- ═══ AI chat container ═══ -->
+			<div id="ai-chat-wrap" class="hidden w-full text-left">
+
+				<!-- Groq onboarding (shown when no API key set) -->
+				<div id="ai-onboarding" class="hidden mb-4">
+					<div class="rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border border-indigo-200/60 dark:border-indigo-700/40 p-5">
+						<div class="flex items-center gap-2 mb-3">
+							<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white flex-shrink-0">
+								<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+							</span>
+							<span class="font-semibold text-zinc-900 dark:text-zinc-50 text-sm">Set up free AI chat with Groq</span>
+						</div>
+						<p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Groq is free &amp; fast — no credit card needed. Get your API key in seconds:</p>
+						<ol class="space-y-2.5 mb-4">
+							<li class="flex items-start gap-2.5">
+								<span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-semibold mt-0.5">1</span>
+								<span class="text-xs text-zinc-700 dark:text-zinc-300">Go to <a href="https://console.groq.com" target="_blank" class="text-indigo-600 dark:text-indigo-400 underline underline-offset-2 font-medium">console.groq.com</a> and sign up (or log in)</span>
+							</li>
+							<li class="flex items-start gap-2.5">
+								<span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-semibold mt-0.5">2</span>
+								<span class="text-xs text-zinc-700 dark:text-zinc-300">Click <strong class="font-semibold text-zinc-900 dark:text-zinc-50">API Keys</strong> in the sidebar → <strong class="font-semibold text-zinc-900 dark:text-zinc-50">Create API key</strong> → copy it</span>
+							</li>
+							<li class="flex items-start gap-2.5">
+								<span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-semibold mt-0.5">3</span>
+								<span class="text-xs text-zinc-700 dark:text-zinc-300">Paste your key below and press <kbd class="px-1 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-mono text-[10px]">Enter</kbd></span>
+							</li>
+						</ol>
+						<!-- Inline key input -->
+						<div class="flex items-center gap-2">
+							<input type="password" id="ai-onboarding-key" placeholder="gsk_...paste your Groq API key here"
+								autocomplete="off"
+								class="flex-1 text-xs px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+							<button id="ai-onboarding-save" type="button"
+								class="flex-shrink-0 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors">
+								Save &amp; Chat
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Chat messages -->
+				<div id="ai-chat-messages" class="max-h-[50vh] overflow-y-auto space-y-3 flex flex-col"></div>
+				<!-- Shared image attachment preview -->
+				<div id="ai-attachment-preview" class="hidden mb-3">
+					<div class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-600 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm">
+						<img id="ai-attachment-thumb" src="" alt="Attached image" class="w-9 h-9 rounded-md object-cover flex-shrink-0" />
+						<div class="min-w-0 flex-1">
+							<p id="ai-attachment-name" class="text-xs text-zinc-700 dark:text-zinc-200 truncate"></p>
+							<p class="text-[11px] text-zinc-500 dark:text-zinc-400">Image will be sent with your next message</p>
+						</div>
+						<button id="ai-attachment-remove" type="button" aria-label="Remove attached image"
+							class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+						</button>
+					</div>
+				</div>
+				<input id="ai-image-input" type="file" accept="image/*" class="hidden" />
+				<!-- Input area (hidden in chat-active mode) -->
+				<div id="ai-input-inline" class="h-14 !rounded-full input shadow-md overflow-hidden">
+					<div class="flex items-center gap-2 px-4 h-full">
+						<button id="ai-history-inline-btn" type="button" aria-label="Chat history" title="Chat history"
+							class="flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
+							<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+						</button>
+						<textarea id="ai-chat-input" rows="1"
+							class="focus:outline-none flex-1 bg-transparent placeholder:text-zinc-400 text-base leading-8 resize-none min-h-8 max-h-24 py-0"
+							placeholder="Ask anything..."></textarea>
+						<div class="flex items-center gap-1.5 flex-shrink-0">
+							<button id="ai-attach-btn" type="button" aria-label="Attach image" title="Attach image"
+								class="flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+								<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+							</button>
+							<button id="ai-send-btn" type="button" aria-label="Send" title="Send"
+								class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+							</button>
+						</div>
+					</div>
+				</div>
+				<p id="ai-provider-label" class="text-[10px] text-center text-zinc-400 dark:text-zinc-500 mt-0.5">Powered by Groq (Free)</p>
+			</div>
+		</div>
+	</header>
 
 	<!-- Duplicate Banner (hidden by default, shown by JS when dupes found) -->
 	<div id="duplicate-banner" class="hidden w-full bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700">
@@ -440,8 +647,9 @@
 					Feedback
 				</button>
 				<button id="shortcuts-btn" type="button" aria-label="Keyboard shortcuts" aria-haspopup="dialog"
-					class="text-zinc-500 dark:text-zinc-200 hover:text-indigo-700 dark:hover:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 focus:ring-offset-2 dark:focus:ring-offset-zinc-800 rounded-full transition-colors">
-					<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
+					class="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+					<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>
+					Shortcuts
 				</button>
 
 			</p>
@@ -461,18 +669,21 @@
 					<div class="overflow-y-auto max-h-[70vh] px-6 pb-4">
 
 						<!-- New Tab -->
-						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+						<div class="py-3">
 							<div class="flex items-center justify-between">
-								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show on new tab</span>
+								<div>
+									<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show on new tab</span>
+									<p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Replace the default new tab with your bookmarks</p>
+								</div>
 								<button type="button" id="new-tab-toggle" role="switch" aria-checked="true"
-									class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
+									class="flex-shrink-0 ml-3 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
 									<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
 								</button>
 							</div>
 						</div>
 
 						<!-- Appearance -->
-						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+						<div class="py-3">
 							<div class="mb-2">
 								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Appearance</span>
 							</div>
@@ -492,8 +703,25 @@
 							</div>
 						</div>
 
+						<!-- Cards per Row -->
+						<div class="py-3">
+							<div class="mb-2">
+								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cards per Row</span>
+							</div>
+							<div class="flex w-full bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 gap-0.5">
+								<button type="button" data-grid-cols="4" aria-pressed="true"
+									class="grid-cols-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-l-md text-sm font-medium leading-5 transition-colors">
+									4
+								</button>
+								<button type="button" data-grid-cols="5" aria-pressed="false"
+									class="grid-cols-btn flex-1 flex justify-center items-center px-3 py-[5px] h-[30px] rounded-r-md text-sm font-medium leading-5 transition-colors">
+									5
+								</button>
+							</div>
+						</div>
+
 						<!-- Thumbnails -->
-						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+						<div class="py-3">
 							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Thumbnails</span>
 							<button id="bulk-capture-btn"
 								class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
@@ -510,11 +738,16 @@
 						</div>
 
 						<!-- Maintenance -->
-						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+						<div class="py-3">
 							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Maintenance</span>
-							<button id="check-broken-btn"
+							<button id="dedup-btn"
 								class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
-								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9h8v8H2z"/><path d="M14 3h8v8h-8z"/><path d="M14 17l2 2 4-4"/></svg>
+								Check Duplicate URLs
+							</button>
+							<button id="check-broken-btn"
+								class="flex items-center gap-2 w-full text-left text-sm px-3 py-2 mt-1 rounded-md bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-800 dark:text-zinc-100 transition-colors">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
 								Check Broken Links
 							</button>
 							<p id="check-broken-status" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 hidden"></p>
@@ -524,7 +757,7 @@
 						</div>
 
 						<!-- Export -->
-						<div class="py-3 border-b border-zinc-100 dark:border-zinc-700">
+						<div class="py-3">
 							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">Export</span>
 							<div class="flex gap-2">
 								<button id="export-json-btn"
@@ -540,7 +773,45 @@
 							</div>
 						</div>
 
+						<!-- Storage Usage -->
+						<div class="py-3">
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Storage Used</span>
+								<span id="storage-usage-text" class="text-xs text-zinc-500 dark:text-zinc-400">0.0 MB / 20 MB</span>
+							</div>
+							<div class="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+								<div id="storage-usage-bar" class="h-1.5 rounded-full transition-all bg-indigo-500" style="width: 0%"></div>
+							</div>
+						</div>
+
 						<!-- Built with love by Bala -->
+						<!-- AI Provider -->
+						<div class="py-3">
+							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">AI Provider</span>
+							<div class="relative mb-2">
+								<select id="ai-provider-select"
+									class="w-full py-2 pl-3 pr-7 text-sm input appearance-none cursor-pointer bg-transparent">
+									<option value="groq">Groq (Free, Fast)</option>
+									<option value="chatgpt">ChatGPT (OpenAI)</option>
+									<option value="gemini">Gemini (Google)</option>
+								</select>
+								<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+									<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+								</span>
+							</div>
+							<div id="ai-key-wrap" class="hidden">
+								<div class="relative">
+									<input type="password" id="ai-api-key" placeholder="Enter API key..."
+										class="w-full py-2 px-3 pr-9 text-sm input" autocomplete="off" />
+									<button type="button" id="ai-key-toggle" aria-label="Show key"
+										class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+										<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+									</button>
+								</div>
+								<p id="ai-key-hint" class="text-xs text-zinc-400 dark:text-zinc-500 mt-1"></p>
+							</div>
+						</div>
+
 						<p class="text-xs text-zinc-400 dark:text-zinc-500 text-center pt-3">
 							Built with love by
 							<a target="_blank" href="https://balamurugan.info" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">Bala</a>
@@ -607,31 +878,31 @@
 	<div id="popover-layout" class="hidden w-full h-full flex flex-col bg-white dark:bg-zinc-950 relative overflow-hidden">
 
 		<!-- Popover Header: Search + Folder Filter -->
-		<div class="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
-			<div class="flex items-stretch flex-1 h-9 input rounded-xl shadow-sm overflow-hidden">
+		<div class="flex items-center gap-2 px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
+			<div class="flex items-stretch flex-1 h-11 !rounded-full input shadow-sm overflow-hidden text-sm">
 				<!-- Search -->
-				<div class="flex items-center gap-2 px-3 flex-1 min-w-0">
+				<div class="flex items-center gap-2.5 px-4 flex-1 min-w-0">
 					<span class="flex-shrink-0 text-zinc-400">
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+						<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
 					</span>
 					<input type="text" id="popover-search-input" aria-label="Search bookmarks"
 						placeholder="Search bookmarks..."
 						class="focus:outline-none w-full bg-transparent placeholder:text-zinc-400 text-sm" />
 					<button id="popover-clear-search" type="button" aria-label="Clear search"
 						class="hidden cursor-pointer flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
-						<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 					</button>
 				</div>
 				<!-- Divider -->
-				<div class="self-center w-px h-4 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
+				<div class="self-center w-px h-6 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
 				<!-- Folder filter -->
 				<div class="relative flex-shrink-0" id="popover-filter-container">
 					<button id="popover-filter-btn" type="button" aria-haspopup="listbox" aria-expanded="false"
-						class="flex items-center h-full pl-3 pr-6 gap-1.5 cursor-pointer text-sm w-[130px]">
-						<span class="text-zinc-400 dark:text-zinc-500 flex-shrink-0 pointer-events-none">
-							<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+						class="flex items-center h-full pl-2.5 pr-7 gap-1.5 cursor-pointer text-sm w-[148px] rounded-r-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+						<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 flex-shrink-0 pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
 						</span>
-						<span id="popover-filter-label" class="text-zinc-500 dark:text-zinc-400 truncate pointer-events-none flex-1 text-left text-xs">All Folders</span>
+						<span id="popover-filter-label" class="text-zinc-500 dark:text-zinc-400 truncate pointer-events-none flex-1 text-left text-xs font-medium">All Folders</span>
 					</button>
 					<span class="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none text-zinc-400 dark:text-zinc-500">
 						<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -647,6 +918,12 @@
 		<div id="popover-list" class="flex-1 overflow-y-auto">
 			<!-- Populated by JS -->
 		</div>
+
+		<!-- Floating Add Bookmark Button (popover) -->
+		<button id="popover-add-bookmark-btn" type="button" aria-label="Add bookmark" aria-haspopup="dialog" title="Add bookmark"
+			class="absolute bottom-14 right-4 flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+			<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+		</button>
 
 		<!-- Popover Footer: sticky controls -->
 		<div class="flex items-center gap-3 px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
@@ -664,15 +941,15 @@
 				</a>
 			</div>
 			<!-- Right: actions -->
-			<button id="popover-dedup-btn" type="button" aria-label="Delete duplicate bookmarks"
+			<button id="popover-capture-btn" type="button" aria-label="Capture missing thumbnails" title="Capture missing thumbnails"
 			class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
-			<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9h8v8H2z"/><path d="M14 3h8v8h-8z"/><path d="M14 17l2 2 4-4"/></svg>
+			<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
 		</button>
-		<button id="popover-manage-btn" type="button" aria-label="Manage folders"
+		<button id="popover-manage-btn" type="button" aria-label="Manage folders" title="Manage folders"
 				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
 				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
 			</button>
-			<button id="popover-settings-btn" type="button" aria-label="Settings"
+			<button id="popover-settings-btn" type="button" aria-label="Settings" title="Settings"
 				class="text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus:outline-none">
 				<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
 			</button>
@@ -755,6 +1032,69 @@
 
 	</div>
 	<!-- End Popover Layout -->
+
+	<!-- Bottom-left snackbar for progress -->
+	<div id="snackbar" class="fixed bottom-4 left-4 z-50 hidden max-w-sm">
+		<div class="bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg px-4 py-3 text-sm">
+			<p id="snackbar-text" class="mb-1"></p>
+			<div id="snackbar-bar-wrap" class="hidden w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1 overflow-hidden">
+				<div id="snackbar-bar" class="bg-indigo-500 dark:bg-indigo-400 h-1 rounded-full transition-all duration-300" style="width: 0%"></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- AI Chat fixed bottom input (shown after first message) -->
+	<div id="ai-chat-fixed-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6">
+		<div class="flex items-center gap-2 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 shadow-xl px-3 py-2.5">
+			<!-- New chat -->
+			<button id="ai-new-chat-btn" type="button" aria-label="New chat" title="New chat"
+				class="flex items-center justify-center w-8 h-8 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
+				<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>
+			</button>
+			<div class="w-px h-5 bg-zinc-200 dark:bg-zinc-600 flex-shrink-0"></div>
+			<button id="ai-history-btn" type="button" aria-label="Chat history" title="Chat history"
+				class="flex items-center justify-center w-8 h-8 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
+				<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+			</button>
+			<input type="text" id="ai-chat-fixed-input" placeholder="Ask anything..."
+				class="flex-1 bg-transparent focus:outline-none text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-zinc-900 dark:text-zinc-100 px-1" />
+			<button id="ai-chat-fixed-attach" type="button" aria-label="Attach image" title="Attach image"
+				class="flex items-center justify-center w-8 h-8 rounded-full text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
+				<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+			</button>
+			<button id="ai-chat-fixed-send" type="button" aria-label="Send"
+				class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+			</button>
+		</div>
+		<p id="ai-provider-label-bottom" class="text-xs text-center text-zinc-400 dark:text-zinc-500 mt-1.5">Powered by Groq (Free)</p>
+	</div>
+
+	<!-- AI Chat history panel (shown above fixed bar) -->
+	<div id="ai-history-panel" class="hidden fixed bottom-[88px] left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6">
+		<div class="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-2xl overflow-hidden">
+			<div class="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
+				<span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Conversations</span>
+				<div class="flex items-center gap-1">
+					<button id="ai-history-clear-all" type="button"
+						class="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+						Clear all
+					</button>
+					<button id="ai-history-close" type="button" aria-label="Close history"
+						class="flex items-center justify-center w-7 h-7 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+					</button>
+				</div>
+			</div>
+			<div id="ai-history-list" class="max-h-80 overflow-y-auto">
+				<!-- populated by JS -->
+			</div>
+			<div id="ai-history-empty" class="hidden px-4 py-10 text-center">
+				<svg class="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+				<p class="text-sm text-zinc-400 dark:text-zinc-500">No conversations yet</p>
+			</div>
+		</div>
+	</div>
 
 	<script type="module" src="main.js"></script>
 </body>

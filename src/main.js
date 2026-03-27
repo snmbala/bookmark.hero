@@ -23,6 +23,10 @@ import {
 // ─── App State ───────────────────────────────────────────────────────────────
 let FILTER_IDS = new Set(); // set of selected folder id strings
 let SORT_BY = 'recently-added';
+let GRID_COLS = 4;
+let SEARCH_MODE = 'bookmarks'; // 'bookmarks' | 'web' | 'ai'
+let AI_PROVIDER = 'groq'; // 'groq' | 'chatgpt' | 'gemini'
+let AI_API_KEY = '';
 let allBookmarks = [];
 let filterOptions = [];
 let bookmarkTree = null;
@@ -30,6 +34,25 @@ let _isCleaningUp = false; // prevents onRemoved loop during empty-folder cleanu
 
 // ─── Popover mode detection ───────────────────────────────────────────────────
 const isPopoverMode = new URLSearchParams(window.location.search).get('mode') === 'popover';
+
+// ─── Grid columns toggle ─────────────────────────────────────────────────────
+function applyGridColsUI() {
+    document.querySelectorAll('.grid-cols-btn').forEach(btn => {
+        const val = Number(btn.getAttribute('data-grid-cols'));
+        const isActive = val === GRID_COLS;
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        btn.classList.remove(
+            'bg-indigo-50', 'border-2', 'border-indigo-400', 'text-indigo-700',
+            'bg-white', 'text-zinc-500', 'dark:bg-indigo-500/10', 'dark:border-indigo-400', 'dark:text-indigo-200',
+            'dark:bg-zinc-700', 'dark:text-zinc-300'
+        );
+        if (isActive) {
+            btn.classList.add('bg-indigo-50', 'border-2', 'border-indigo-400', 'text-indigo-700', 'dark:bg-indigo-500/10', 'dark:border-indigo-400', 'dark:text-indigo-200');
+        } else {
+            btn.classList.add('bg-white', 'text-zinc-500', 'dark:bg-zinc-700', 'dark:text-zinc-300');
+        }
+    });
+}
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 let folderList, searchInput, clearSearch, searchIcon, settingsButton;
@@ -43,18 +66,8 @@ getCachedBookmarks().then(function (bookmarks) {
     searchIcon        = document.getElementById("search-icon");
     settingsButton    = document.getElementById("settings-btn");
 
-    // Show header border only after scrolling
-    const appHeader = document.getElementById('app-header');
-    const onScroll = () => {
-        if (window.scrollY > 0) {
-            appHeader.classList.add('border-zinc-100', 'dark:border-zinc-800');
-            appHeader.classList.remove('border-transparent');
-        } else {
-            appHeader.classList.remove('border-zinc-100', 'dark:border-zinc-800');
-            appHeader.classList.add('border-transparent');
-        }
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // Greeting
+    updateGreeting();
 
     // Theme
     initializeThemeToggle();
@@ -66,6 +79,8 @@ getCachedBookmarks().then(function (bookmarks) {
     const settingsModal = document.getElementById("settings-modal");
     settingsButton.addEventListener("click", function (event) {
         event.stopPropagation();
+        const willOpen = settingsModal.classList.contains('hidden');
+        if (willOpen) closeAllModals('settings-modal');
         settingsModal.classList.toggle("hidden");
         settingsModalOpen = !settingsModal.classList.contains("hidden");
         settingsButton.setAttribute('aria-expanded', settingsModalOpen ? 'true' : 'false');
@@ -104,6 +119,17 @@ getCachedBookmarks().then(function (bookmarks) {
             settingsButton.setAttribute('aria-expanded', 'false');
         });
     }
+
+    // Grid columns toggle buttons
+    document.querySelectorAll('.grid-cols-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            GRID_COLS = Number(btn.getAttribute('data-grid-cols'));
+            chrome.storage.sync.set({ gridCols: GRID_COLS });
+            applyGridColsUI();
+            updateView(searchInput.value.trim().toLowerCase());
+        });
+    });
+
     document.addEventListener("click", function () {
         if (settingsModalOpen && !settingsModal.classList.contains("hidden")) {
             settingsModal.classList.add("hidden");
@@ -115,8 +141,16 @@ getCachedBookmarks().then(function (bookmarks) {
     });
 
     // Restore saved sort preference and check first-run state
-    chrome.storage.sync.get(['sortPreference', 'hasSeenOnboarding'], function (result) {
+    chrome.storage.sync.get(['sortPreference', 'hasSeenOnboarding', 'gridCols', 'searchMode', 'searchEngine', 'aiProvider'], function (result) {
         if (result.sortPreference) SORT_BY = result.sortPreference;
+        if (result.gridCols) GRID_COLS = result.gridCols;
+        if (result.searchMode) SEARCH_MODE = result.searchMode;
+        if (result.searchEngine) SEARCH_ENGINE = result.searchEngine;
+        if (result.aiProvider && result.aiProvider !== 'duckduckgo') AI_PROVIDER = result.aiProvider;
+        applyGridColsUI();
+        setSearchMode(SEARCH_MODE);
+        setSearchEngine(SEARCH_ENGINE);
+        setAiProvider(AI_PROVIDER);
         bootstrapBookmarks();
         if (!result.hasSeenOnboarding) showOnboardingModal();
     });
@@ -302,7 +336,8 @@ function showGridView(searchTerm) {
     titleRow.appendChild(sortWrapper);
 
     const grid = document.createElement("div");
-    grid.className = "grid my-6 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8";
+    const gridGap = GRID_COLS >= 5 ? 'gap-5' : 'gap-8';
+    grid.className = `grid my-6 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-${GRID_COLS} ${gridGap}`;
 
     gridContainer.appendChild(titleRow);
 
@@ -555,9 +590,784 @@ function populateFolderDropdown(selectedParentId) {
     setSelected(selectedParentId);
 }
 
+// ─── Greeting ─────────────────────────────────────────────────────────────────
+function updateGreeting() {
+    const el = document.getElementById('greeting-text');
+    if (!el) return;
+    const h = new Date().getHours();
+    el.textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+// ─── Hero collapse when searching ─────────────────────────────────────────────
+function setHeroCompact(compact) {
+    const hero = document.getElementById('hero-section');
+    if (!hero) return;
+    if (compact) {
+        hero.classList.remove('pt-[15vh]', 'pb-6');
+        hero.classList.add('pt-8', 'pb-4');
+    } else {
+        hero.classList.remove('pt-8', 'pb-4');
+        hero.classList.add('pt-[15vh]', 'pb-6');
+    }
+}
+
+// ─── Search mode switching ────────────────────────────────────────────────────
+const SEARCH_MODE_CONFIG = {
+    bookmarks: { placeholder: 'Search bookmarks...', showFilter: true },
+    web:       { placeholder: 'Search the web...',    showFilter: false },
+    ai:        { placeholder: 'Ask AI anything...',   showFilter: false }
+};
+
+const SEARCH_ENGINES = {
+    google:     { name: 'Google',     url: 'https://www.google.com/search?q=',    icon: 'https://www.google.com/favicon.ico' },
+    bing:       { name: 'Bing',       url: 'https://www.bing.com/search?q=',      icon: 'https://www.bing.com/favicon.ico' },
+    duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=',          icon: 'https://duckduckgo.com/favicon.ico' },
+    brave:      { name: 'Brave',      url: 'https://search.brave.com/search?q=',  icon: 'https://brave.com/static-assets/images/brave-favicon.png' }
+};
+let SEARCH_ENGINE = 'google';
+
+function setSearchMode(mode) {
+    // Clean up AI chat layout when leaving AI mode
+    if (mode !== 'ai') {
+        document.body.classList.remove('ai-chat-active');
+        document.getElementById('ai-chat-fixed-bar')?.classList.add('hidden');
+    }
+    SEARCH_MODE = mode;
+    const folderList = document.getElementById('folder-list');
+    const bookmarkWrap = document.getElementById('bookmark-search-wrap');
+    const webWrap      = document.getElementById('web-search-wrap');
+    const aiWrap       = document.getElementById('ai-chat-wrap');
+
+    // Update tabs
+    document.querySelectorAll('.search-mode-btn').forEach(function (btn) {
+        btn.setAttribute('aria-pressed', btn.dataset.searchMode === mode ? 'true' : 'false');
+    });
+
+    // Show/hide the correct search bar
+    if (bookmarkWrap) bookmarkWrap.classList.toggle('hidden', mode !== 'bookmarks');
+    if (webWrap)      webWrap.classList.toggle('hidden', mode !== 'web');
+    if (aiWrap)       aiWrap.classList.toggle('hidden', mode !== 'ai');
+
+    // Clear bookmark search
+    if (searchInput) searchInput.value = '';
+    if (clearSearch) clearSearch.classList.add('hidden');
+    if (searchIcon) { searchIcon.classList.remove('text-indigo-500'); searchIcon.classList.add('text-zinc-400'); }
+
+    // Mode-specific
+    if (mode === 'bookmarks') {
+        if (folderList) folderList.classList.remove('hidden');
+        setHeroCompact(false);
+        updateView('');
+    } else if (mode === 'web') {
+        if (folderList) folderList.classList.add('hidden');
+        setHeroCompact(false);
+        const webInput = document.getElementById('web-search-input');
+        if (webInput) { webInput.value = ''; webInput.focus(); }
+    } else if (mode === 'ai') {
+        if (folderList) folderList.classList.add('hidden');
+        if (_aiMessages.length > 0) {
+            // Restore full chat layout
+            document.body.classList.add('ai-chat-active');
+            document.getElementById('ai-chat-fixed-bar')?.classList.remove('hidden');
+            setHeroCompact(true);
+            setTimeout(() => document.getElementById('ai-chat-fixed-input')?.focus(), 50);
+        } else {
+            setHeroCompact(false);
+            const aiInput = document.getElementById('ai-chat-input');
+            if (aiInput) setTimeout(() => aiInput.focus(), 50);
+        }
+    }
+
+    // Persist preference
+    chrome.storage.sync.set({ searchMode: mode });
+}
+
+function setSearchEngine(engine) {
+    SEARCH_ENGINE = engine;
+    const cfg = SEARCH_ENGINES[engine];
+    const icon = document.getElementById('engine-icon');
+    const webInput = document.getElementById('web-search-input');
+    const panel = document.getElementById('engine-panel');
+    if (icon) { icon.src = cfg.icon; icon.alt = cfg.name; }
+    if (webInput) webInput.placeholder = 'Search ' + cfg.name + '...';
+    // Mark active option
+    document.querySelectorAll('.engine-option').forEach(btn => {
+        btn.setAttribute('aria-selected', btn.dataset.engine === engine ? 'true' : 'false');
+    });
+    if (panel) panel.classList.add('hidden');
+    chrome.storage.sync.set({ searchEngine: engine });
+}
+
+function executeExternalSearch(query) {
+    if (!query) return;
+    const cfg = SEARCH_ENGINES[SEARCH_ENGINE] || SEARCH_ENGINES.google;
+    window.open(cfg.url + encodeURIComponent(query), '_self');
+}
+
+// ─── Inline AI Chat ──────────────────────────────────────────────────────────
+let _aiMessages = []; // { role: 'user'|'ai', text: string }
+let _aiStreaming = false;
+let _aiAutoScroll = true;
+let _aiPendingImage = null; // { dataUrl, mimeType, name }
+let _currentConvId = null;  // ID of the loaded/active conversation
+
+// ─── Conversation history (chrome.storage.local key: 'aiChatHistory') ────────
+const AI_HISTORY_KEY = 'aiChatHistory';
+const AI_HISTORY_MAX = 50; // max saved conversations
+
+function _historyTimestamp(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+    if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isYesterday) return 'Yesterday ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function saveCurrentConversation() {
+    // Only save if there are actual user messages
+    const userMsgs = _aiMessages.filter(m => m.role === 'user' && (m.text || m.imageDataUrl));
+    if (userMsgs.length === 0) return;
+
+    // Title = first user message text (truncated), fallback to "Image"
+    const firstUser = userMsgs[0];
+    const title = (firstUser.text || (firstUser.imageDataUrl ? '[Image]' : '')).slice(0, 72) || 'Conversation';
+
+    // Strip image data from stored messages to keep storage small
+    const storedMessages = _aiMessages.map(m => ({
+        role: m.role,
+        text: m.text || '',
+        imageMimeType: m.imageDataUrl ? m.imageMimeType : null,
+        _hadImage: !!m.imageDataUrl
+    }));
+
+    chrome.storage.local.get([AI_HISTORY_KEY], function (result) {
+        const history = result[AI_HISTORY_KEY] || [];
+        if (_currentConvId) {
+            // Update existing conversation
+            const idx = history.findIndex(c => c.id === _currentConvId);
+            if (idx !== -1) {
+                history[idx].messages = storedMessages;
+                history[idx].timestamp = Date.now();
+                history[idx].title = title;
+            } else {
+                history.unshift({ id: _currentConvId, title, timestamp: Date.now(), provider: AI_PROVIDER, messages: storedMessages });
+            }
+        } else {
+            _currentConvId = 'conv_' + Date.now();
+            history.unshift({ id: _currentConvId, title, timestamp: Date.now(), provider: AI_PROVIDER, messages: storedMessages });
+        }
+        // Trim to max
+        if (history.length > AI_HISTORY_MAX) history.splice(AI_HISTORY_MAX);
+        chrome.storage.local.set({ [AI_HISTORY_KEY]: history });
+    });
+}
+
+function deleteConversation(id) {
+    chrome.storage.local.get([AI_HISTORY_KEY], function (result) {
+        const history = (result[AI_HISTORY_KEY] || []).filter(c => c.id !== id);
+        chrome.storage.local.set({ [AI_HISTORY_KEY]: history }, function () {
+            if (_currentConvId === id) _currentConvId = null;
+            renderHistoryPanel();
+        });
+    });
+}
+
+function loadConversation(conv) {
+    // Restore messages (images won't be restored — they were stripped)
+    _aiMessages = conv.messages.map(m => ({
+        role: m.role,
+        text: m.text || '',
+        imageDataUrl: null,
+        imageMimeType: m.imageMimeType || null
+    }));
+    _currentConvId = conv.id;
+    _aiAutoScroll = true;
+    renderAiMessages();
+    // Scroll to bottom
+    const container = document.getElementById('ai-chat-messages');
+    if (container) container.scrollTop = container.scrollHeight;
+    // Hide panel
+    document.getElementById('ai-history-panel')?.classList.add('hidden');
+}
+
+function renderHistoryPanel() {
+    const list = document.getElementById('ai-history-list');
+    const empty = document.getElementById('ai-history-empty');
+    if (!list) return;
+
+    chrome.storage.local.get([AI_HISTORY_KEY], function (result) {
+        const history = result[AI_HISTORY_KEY] || [];
+        list.innerHTML = '';
+
+        if (history.length === 0) {
+            list.classList.add('hidden');
+            empty?.classList.remove('hidden');
+            return;
+        }
+        list.classList.remove('hidden');
+        empty?.classList.add('hidden');
+
+        // Sort newest first
+        const sorted = [...history].sort((a, b) => b.timestamp - a.timestamp);
+
+        // Group by date bucket
+        const now = new Date();
+        const todayStr = now.toDateString();
+        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+        const yesterdayStr = yesterday.toDateString();
+
+        function dateBucket(ts) {
+            const d = new Date(ts);
+            const s = d.toDateString();
+            if (s === todayStr) return 'Today';
+            if (s === yesterdayStr) return 'Yesterday';
+            // Same year → "24 Mar", other year → "24 Mar 2025"
+            const sameYear = d.getFullYear() === now.getFullYear();
+            return d.toLocaleDateString([], sameYear
+                ? { day: 'numeric', month: 'short' }
+                : { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        // Build ordered groups (preserving insertion order = newest first)
+        const groups = [];
+        const groupMap = {};
+        sorted.forEach(function (conv) {
+            const bucket = dateBucket(conv.timestamp);
+            if (!groupMap[bucket]) {
+                groupMap[bucket] = [];
+                groups.push({ label: bucket, items: groupMap[bucket] });
+            }
+            groupMap[bucket].push(conv);
+        });
+
+        const TRASH_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
+        groups.forEach(function (group, gi) {
+            // Date section header
+            const header = document.createElement('div');
+            header.className = 'flex items-center gap-2 px-4 pt-' + (gi === 0 ? '3' : '4') + ' pb-1.5';
+            const label = document.createElement('span');
+            label.className = 'text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500';
+            label.textContent = group.label;
+            header.appendChild(label);
+            list.appendChild(header);
+
+            // Rows for this group
+            group.items.forEach(function (conv) {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3 px-4 py-2.5 mx-2 mb-0.5 rounded-xl cursor-pointer transition-colors group' +
+                    ' hover:bg-zinc-50 dark:hover:bg-zinc-800' +
+                    (_currentConvId === conv.id ? ' bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-50 dark:hover:bg-indigo-950/40' : '');
+
+                const meta = document.createElement('div');
+                meta.className = 'flex-1 min-w-0';
+
+                const titleEl = document.createElement('p');
+                titleEl.className = 'text-[13px] text-zinc-800 dark:text-zinc-100 truncate' +
+                    (_currentConvId === conv.id ? ' font-semibold text-indigo-700 dark:text-indigo-300' : ' font-medium');
+                titleEl.textContent = conv.title;
+
+                const timeEl = document.createElement('p');
+                timeEl.className = 'text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5 tabular-nums';
+                const d = new Date(conv.timestamp);
+                const hhmm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                timeEl.textContent = hhmm + (conv.provider ? '  ·  ' + conv.provider : '');
+
+                meta.appendChild(titleEl);
+                meta.appendChild(timeEl);
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.title = 'Delete';
+                delBtn.className = 'flex-shrink-0 opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all';
+                delBtn.innerHTML = TRASH_SVG;
+                delBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    deleteConversation(conv.id);
+                });
+
+                row.appendChild(meta);
+                row.appendChild(delBtn);
+                row.addEventListener('click', function () { loadConversation(conv); });
+                list.appendChild(row);
+            });
+        });
+
+        // Bottom padding
+        const pad = document.createElement('div');
+        pad.className = 'h-2';
+        list.appendChild(pad);
+    });
+}
+
+
+
+function splitDataUrl(dataUrl) {
+    const parts = (dataUrl || '').split(',');
+    const header = parts[0] || '';
+    const data = parts[1] || '';
+    const mimeMatch = header.match(/^data:([^;]+);base64$/);
+    return {
+        mimeType: mimeMatch ? mimeMatch[1] : 'image/jpeg',
+        base64: data
+    };
+}
+
+function updateAttachmentPreviewUI() {
+    const preview = document.getElementById('ai-attachment-preview');
+    const thumb = document.getElementById('ai-attachment-thumb');
+    const name = document.getElementById('ai-attachment-name');
+    if (!preview || !thumb || !name) return;
+    if (_aiPendingImage?.dataUrl) {
+        preview.classList.remove('hidden');
+        thumb.src = _aiPendingImage.dataUrl;
+        name.textContent = _aiPendingImage.name || 'Attached image';
+    } else {
+        preview.classList.add('hidden');
+        thumb.src = '';
+        name.textContent = '';
+    }
+}
+
+function clearPendingImage() {
+    _aiPendingImage = null;
+    const input = document.getElementById('ai-image-input');
+    if (input) input.value = '';
+    updateAttachmentPreviewUI();
+}
+
+function handleImagePick(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = function () {
+        const dataUrl = String(reader.result || '');
+        const split = splitDataUrl(dataUrl);
+        _aiPendingImage = {
+            dataUrl,
+            mimeType: split.mimeType,
+            name: file.name || 'image'
+        };
+        updateAttachmentPreviewUI();
+    };
+    reader.readAsDataURL(file);
+}
+
+const AI_PROVIDERS = {
+    groq:       { name: 'Groq',     needsKey: true, hint: 'Free key — sign up at groq.com, get key at console.groq.com/keys' },
+    chatgpt:    { name: 'ChatGPT',  needsKey: true, hint: 'Get your key at platform.openai.com/api-keys' },
+    gemini:     { name: 'Gemini',   needsKey: true, hint: 'Get key at aistudio.google.com/apikey (may require billing)' }
+};
+
+function setAiProvider(provider) {
+    AI_PROVIDER = provider;
+    const cfg = AI_PROVIDERS[provider];
+    if (!cfg) return;
+    const select = document.getElementById('ai-provider-select');
+    const keyWrap = document.getElementById('ai-key-wrap');
+    const keyInput = document.getElementById('ai-api-key');
+    const keyHint = document.getElementById('ai-key-hint');
+    const label = document.getElementById('ai-provider-label');
+
+    if (select) select.value = provider;
+    if (keyWrap) keyWrap.classList.remove('hidden');
+    if (keyHint) keyHint.textContent = cfg.hint || '';
+    if (label) label.textContent = 'Powered by ' + cfg.name;
+    const labelBottom = document.getElementById('ai-provider-label-bottom');
+    if (labelBottom) labelBottom.textContent = 'Powered by ' + cfg.name;
+
+    // Load saved key for this provider
+    chrome.storage.local.get(['aiKeys'], function (result) {
+        const keys = result.aiKeys || {};
+        AI_API_KEY = keys[provider] || '';
+        if (keyInput) keyInput.value = AI_API_KEY;
+        // Show onboarding card if no key set for this provider
+        const onboarding = document.getElementById('ai-onboarding');
+        if (onboarding) {
+            const hasKey = !!AI_API_KEY;
+            onboarding.classList.toggle('hidden', hasKey);
+            // Pre-fill the inline key input with any existing value
+            const ob = document.getElementById('ai-onboarding-key');
+            if (ob) ob.value = '';
+        }
+    });
+
+    chrome.storage.sync.set({ aiProvider: provider });
+}
+
+function saveAiApiKey(provider, key) {
+    chrome.storage.local.get(['aiKeys'], function (result) {
+        const keys = result.aiKeys || {};
+        keys[provider] = key;
+        chrome.storage.local.set({ aiKeys: keys });
+        // Hide onboarding once a key is saved
+        if (key) {
+            document.getElementById('ai-onboarding')?.classList.add('hidden');
+            // Also sync to Settings key input
+            const keyInput = document.getElementById('ai-api-key');
+            if (keyInput) keyInput.value = key;
+        }
+    });
+}
+
+// Lightweight markdown → safe HTML (no external deps)
+function parseMarkdown(text) {
+    // Escape HTML first
+    let s = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Code blocks ```
+    s = s.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold **text**
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic *text*
+    s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+    // Headings ### ## #
+    s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    // Unordered list items
+    s = s.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    s = s.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    // Ordered list items
+    s = s.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    // Wrap consecutive <li> not already in <ul> into <ol>
+    s = s.replace(/(<li>[\s\S]*?<\/li>)/g, function(match) {
+        if (/<ul>/.test(s.slice(0, s.indexOf(match)))) return match;
+        return match;
+    });
+    // Horizontal rule
+    s = s.replace(/^---+$/gm, '<hr>');
+    // Paragraphs: double newline
+    s = s.split(/\n{2,}/).map(function(block) {
+        block = block.trim();
+        if (!block) return '';
+        if (/^<(h[1-3]|ul|ol|li|pre|hr)/.test(block)) return block;
+        // Wrap loose <li> groups in <ol>
+        if (/^<li>/.test(block)) return '<ol>' + block + '</ol>';
+        return '<p>' + block.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+
+    return s;
+}
+
+function renderAiMessages() {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return;
+    container.innerHTML = '';
+    _aiMessages.forEach(function (msg) {
+        const div = document.createElement('div');
+        if (msg.role === 'user') {
+            div.className = 'ai-msg-user';
+            if (msg.imageDataUrl) {
+                const img = document.createElement('img');
+                img.className = 'ai-msg-user-image';
+                img.alt = 'Attached image';
+                img.src = msg.imageDataUrl;
+                div.appendChild(img);
+            }
+            if (msg.text) {
+                const textEl = document.createElement('div');
+                textEl.textContent = msg.text;
+                div.appendChild(textEl);
+            }
+            if (!msg.text && !msg.imageDataUrl) {
+                div.textContent = '(empty message)';
+            }
+        } else {
+            div.className = 'ai-msg-ai';
+            div.innerHTML = !msg.text ? '<span class="ai-typing"></span>' : parseMarkdown(msg.text);
+        }
+        container.appendChild(div);
+    });
+    if (_aiAutoScroll) {
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Switch to full chat layout once messages exist (only in AI mode)
+    if (SEARCH_MODE === 'ai') {
+        const hasMessages = _aiMessages.length > 0;
+        document.body.classList.toggle('ai-chat-active', hasMessages);
+        const fixedBar = document.getElementById('ai-chat-fixed-bar');
+        if (fixedBar) fixedBar.classList.toggle('hidden', !hasMessages);
+        if (hasMessages) {
+            setHeroCompact(true);
+            const fixedInput = document.getElementById('ai-chat-fixed-input');
+            if (fixedInput && document.activeElement !== fixedInput) fixedInput.focus();
+        }
+    }
+}
+
+async function sendAiMessage(text) {
+    if ((!text && !_aiPendingImage) || _aiStreaming) return;
+    _aiAutoScroll = true; // follow newly sent message by default
+    const sendingImage = _aiPendingImage;
+    _aiMessages.push({ role: 'user', text: text || '', imageDataUrl: sendingImage?.dataUrl || null, imageMimeType: sendingImage?.mimeType || null });
+    _aiMessages.push({ role: 'ai', text: '' }); // empty — typing indicator shown
+    clearPendingImage();
+    renderAiMessages();
+
+    const sendBtn = document.getElementById('ai-send-btn');
+    const fixedSendBtn = document.getElementById('ai-chat-fixed-send');
+    const chatInput = document.getElementById('ai-chat-input');
+    if (sendBtn) sendBtn.disabled = true;
+    if (fixedSendBtn) fixedSendBtn.disabled = true;
+    _aiStreaming = true;
+
+    const aiIdx = _aiMessages.length - 1;
+    const userIdx = _aiMessages.length - 2;
+
+    // Live-update the last AI bubble as tokens stream in
+    const onChunk = function (accumulated) {
+        _aiMessages[aiIdx].text = accumulated;
+        const container = document.getElementById('ai-chat-messages');
+        const lastEl = container?.lastElementChild;
+        if (lastEl?.classList.contains('ai-msg-ai')) {
+            lastEl.innerHTML = parseMarkdown(accumulated);
+            lastEl.classList.add('is-streaming');
+            if (_aiAutoScroll) {
+                container.scrollTop = container.scrollHeight;
+                // Stop following once the current user message reaches top.
+                // The rest can be read manually by scrolling.
+                const userEl = container.children[userIdx];
+                if (userEl) {
+                    // More stable than getBoundingClientRect during rapid streaming.
+                    const userTopInScroll = userEl.offsetTop;
+                    const topViewportInScroll = container.scrollTop;
+                    if (userTopInScroll <= topViewportInScroll + 6) {
+                        _aiAutoScroll = false;
+                    }
+                }
+            }
+        }
+    };
+
+    try {
+        if (!AI_API_KEY) {
+            throw new Error(AI_PROVIDERS[AI_PROVIDER]?.hint || 'API key required');
+        }
+        // Build history — exclude the empty AI placeholder
+        const messages = _aiMessages
+            .slice(0, -1)
+            .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text || '', imageDataUrl: m.imageDataUrl || null, imageMimeType: m.imageMimeType || null }));
+
+        let resultText = '';
+        if (AI_PROVIDER === 'groq') {
+            resultText = await _fetchGroq(messages, AI_API_KEY, onChunk);
+        } else if (AI_PROVIDER === 'chatgpt') {
+            resultText = await _fetchOpenAI(messages, AI_API_KEY, onChunk);
+        } else if (AI_PROVIDER === 'gemini') {
+            resultText = await _fetchGemini(messages, AI_API_KEY, onChunk);
+        }
+        if (!resultText) {
+            _aiMessages[aiIdx].text = 'No response received. Check your API key in Settings.';
+            renderAiMessages();
+        }
+    } catch (err) {
+        const msg = err.message || 'Failed to connect';
+        if (msg.includes('console.groq.com') || msg.includes('platform.openai.com') || msg.includes('aistudio.google.com')) {
+            _aiMessages[aiIdx].text = '📋 Setup Required:\n' + msg;
+        } else {
+            _aiMessages[aiIdx].text = 'Error: ' + msg;
+        }
+        renderAiMessages();
+    } finally {
+        _aiStreaming = false;
+        document.getElementById('ai-chat-messages')?.lastElementChild?.classList.remove('is-streaming');
+        if (sendBtn) sendBtn.disabled = false;
+        if (fixedSendBtn) fixedSendBtn.disabled = false;
+        // Auto-save conversation after each exchange
+        saveCurrentConversation();
+        const fixedBar = document.getElementById('ai-chat-fixed-bar');
+        if (fixedBar && !fixedBar.classList.contains('hidden')) {
+            document.getElementById('ai-chat-fixed-input')?.focus();
+        } else if (chatInput) {
+            chatInput.focus();
+        }
+    }
+}
+
+async function _fetchGemini(messages, apiKey, onChunk) {
+    if (!apiKey) throw new Error('Please add your Google API key in Settings');
+    const contents = messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: (() => {
+            const parts = [];
+            if (m.content) parts.push({ text: m.content });
+            if (m.role !== 'assistant' && m.imageDataUrl) {
+                const split = splitDataUrl(m.imageDataUrl);
+                if (split.base64) {
+                    parts.push({
+                        inline_data: {
+                            mime_type: split.mimeType,
+                            data: split.base64
+                        }
+                    });
+                }
+            }
+            return parts.length ? parts : [{ text: '' }];
+        })()
+    }));
+    const models = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'];
+    const endpoints = ['v1', 'v1beta'];
+    let lastError = '';
+    for (const endpoint of endpoints) {
+        for (const model of models) {
+            const url = 'https://generativelanguage.googleapis.com/' + endpoint + '/models/' + model
+                + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(apiKey);
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents })
+                });
+                if (res.status === 404) { lastError = model + ' (' + endpoint + ')'; continue; }
+                if (!res.ok) {
+                    const errBody = await res.text().catch(() => '');
+                    throw new Error('Gemini API error ' + res.status + (errBody ? ': ' + errBody.slice(0, 200) : ''));
+                }
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '', full = '';
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data: ')) continue;
+                        try {
+                            const json = JSON.parse(trimmed.slice(6));
+                            const delta = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                            if (delta) { full += delta; onChunk(full); }
+                        } catch {}
+                    }
+                }
+                return full;
+            } catch (e) {
+                if (e.message?.includes('API error')) throw e;
+                lastError = model + ': ' + e.message;
+                continue;
+            }
+        }
+    }
+    throw new Error('No Gemini models available. Verify your API key at https://aistudio.google.com/apikey');
+}
+
+// Shared SSE reader for OpenAI-compatible APIs
+async function _readSSE(response, onChunk) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', full = '';
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') return full;
+            try {
+                const json = JSON.parse(data);
+                const delta = json.choices?.[0]?.delta?.content;
+                if (delta) { full += delta; onChunk(full); }
+            } catch {}
+        }
+    }
+    return full;
+}
+
+async function _fetchOpenAI(messages, apiKey, onChunk) {
+    if (!apiKey) throw new Error('Please add your OpenAI API key in Settings');
+    const payloadMessages = messages.map(m => {
+        if (m.role === 'user' && m.imageDataUrl) {
+            const content = [];
+            if (m.content) content.push({ type: 'text', text: m.content });
+            content.push({ type: 'image_url', image_url: { url: m.imageDataUrl } });
+            return { role: m.role, content };
+        }
+        return { role: m.role, content: m.content || '' };
+    });
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: payloadMessages, stream: true })
+    });
+    if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error('OpenAI API error ' + res.status + (errBody ? ': ' + errBody.slice(0, 150) : ''));
+    }
+    return _readSSE(res, onChunk);
+}
+
+async function _fetchGroq(messages, apiKey, onChunk) {
+    if (!apiKey) throw new Error('Free key — sign up at groq.com, get key at console.groq.com/keys');
+    const hasImages = messages.some(m => m.role === 'user' && !!m.imageDataUrl);
+    const payloadMessages = messages.map(m => {
+        if (m.role === 'user' && m.imageDataUrl) {
+            const content = [];
+            if (m.content) content.push({ type: 'text', text: m.content });
+            content.push({ type: 'image_url', image_url: { url: m.imageDataUrl } });
+            return { role: m.role, content };
+        }
+        return { role: m.role, content: m.content || '' };
+    });
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+            model: hasImages ? 'llama-3.2-11b-vision-preview' : 'llama-3.1-8b-instant',
+            messages: payloadMessages,
+            stream: true
+        })
+    });
+    if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        const msg = errBody ? errBody.slice(0, 150) : '';
+        if (res.status === 401) throw new Error('Invalid API key. Get one at console.groq.com/keys');
+        if (hasImages && res.status === 400) {
+            throw new Error('This Groq model/account does not support image input yet. Try Gemini provider for image chat.');
+        }
+        throw new Error('Groq API error ' + res.status + (msg ? ': ' + msg : ''));
+    }
+    return _readSSE(res, onChunk);
+}
+
+// ─── Close all modals helper ──────────────────────────────────────────────────
+const MODAL_IDS = [
+    'edit-modal', 'add-modal', 'manage-panel', 'dedup-review-modal',
+    'onboarding-modal', 'broken-confirm-modal', 'settings-modal',
+    'shortcuts-modal', 'feedback-panel'
+];
+function closeAllModals(except) {
+    MODAL_IDS.forEach(id => {
+        if (id === except) return;
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('hidden')) el.classList.add('hidden');
+    });
+    if (except !== 'settings-modal') {
+        const sb = document.getElementById('settings-btn');
+        if (sb) sb.setAttribute('aria-expanded', 'false');
+    }
+}
+window.closeAllModals = closeAllModals;
+
 let _editFocusReturn = null;
 
 function openEditModal(bookmarkNode) {
+    closeAllModals('edit-modal');
     _editFocusReturn = document.activeElement;
     const editModal = document.getElementById("edit-modal");
     document.getElementById("edit-title").value = bookmarkNode.title || "";
@@ -580,10 +1390,104 @@ function closeEditModal() {
     _editFocusReturn = null;
 }
 
+// ─── Add Bookmark Modal ───────────────────────────────────────────────────────
+function populateAddFolderDropdown(selectedParentId) {
+    const panel   = document.getElementById('add-folder-panel');
+    const hidden  = document.getElementById('add-folder-dropdown');
+    const labelEl = document.getElementById('add-folder-label');
+    if (!panel) return;
+
+    const rows = [];
+
+    function setSelected(value) {
+        if (hidden) hidden.value = value || '';
+        const opt = filterOptions.find(o => String(o.value) === String(value));
+        if (labelEl) labelEl.textContent = opt ? opt.label : 'Select folder';
+        rows.forEach(({ el, val }) => {
+            const active = String(val) === String(value);
+            el.classList.toggle('bg-indigo-50',           active);
+            el.classList.toggle('dark:bg-indigo-900/30',  active);
+            el.classList.toggle('text-indigo-700',        active);
+            el.classList.toggle('dark:text-indigo-300',   active);
+        });
+    }
+
+    panel.innerHTML = '';
+
+    filterOptions.slice(1).forEach(function (option) {
+        const item = document.createElement('div');
+        item.className = 'flex items-center gap-2 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 cursor-pointer select-none text-zinc-700 dark:text-zinc-200 transition-colors';
+        item.style.paddingLeft = `${12 + option.depth * 14}px`;
+
+        const icon = document.createElement('span');
+        icon.className = 'flex-shrink-0 pointer-events-none';
+        icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
+
+        const label = document.createElement('span');
+        label.textContent = option.label;
+        label.className = 'text-sm truncate pointer-events-none';
+
+        item.appendChild(icon);
+        item.appendChild(label);
+        rows.push({ el: item, val: option.value });
+
+        item.addEventListener('click', function (e) {
+            e.stopPropagation();
+            setSelected(String(option.value));
+            panel.classList.add('hidden');
+            const btn   = document.getElementById('add-folder-btn');
+            const arrow = document.getElementById('add-folder-arrow');
+            if (btn)   btn.setAttribute('aria-expanded', 'false');
+            if (arrow) arrow.classList.remove('rotate-180');
+        });
+
+        panel.appendChild(item);
+    });
+
+    setSelected(selectedParentId);
+}
+
+function getDefaultAddFolder() {
+    if (bookmarkTree && bookmarkTree[0]) {
+        const other = (bookmarkTree[0].children || []).find(
+            n => (n.title || '').toLowerCase() === 'other bookmarks'
+        );
+        if (other) return other.id;
+    }
+    return filterOptions.length > 1 ? filterOptions[1].value : null;
+}
+
+let _addFocusReturn = null;
+
+function openAddModal() {
+    closeAllModals('add-modal');
+    _addFocusReturn = document.activeElement;
+    document.getElementById('add-title').value = '';
+    document.getElementById('add-url').value   = '';
+    const err = document.getElementById('add-error');
+    if (err) { err.textContent = ''; err.classList.add('hidden'); }
+    populateAddFolderDropdown(getDefaultAddFolder());
+    document.getElementById('add-modal').classList.remove('hidden');
+    setTimeout(() => { document.getElementById('add-title').focus(); }, 50);
+}
+
+function closeAddModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+    const fp = document.getElementById('add-folder-panel');
+    const fa = document.getElementById('add-folder-arrow');
+    if (fp) fp.classList.add('hidden');
+    if (fa) fa.classList.remove('rotate-180');
+    if (_addFocusReturn && document.contains(_addFocusReturn)) {
+        _addFocusReturn.focus();
+    }
+    _addFocusReturn = null;
+}
+
 // ─── Manage Panel ─────────────────────────────────────────────────────────────
 function openManagePanel() {
     const panel = document.getElementById('manage-panel');
     if (!panel) return;
+    closeAllModals('manage-panel');
     panel.classList.remove('hidden');
     renderManageContent();
     setTimeout(() => {
@@ -1046,6 +1950,7 @@ let _dedupGroups = [];
 let _dedupIndex = 0;
 
 function openDedupReview() {
+    closeAllModals('dedup-review-modal');
     const groups = findSameDomainGroups(allBookmarks);
     if (groups.length === 0) {
         alert('No same-domain bookmarks found.');
@@ -1229,6 +2134,7 @@ async function isUrlReachable(url) {
 function showOnboardingModal() {
     const modal = document.getElementById('onboarding-modal');
     if (!modal) return;
+    closeAllModals('onboarding-modal');
 
     const withUrl = allBookmarks.filter(b => b.bookmark.url);
     const count = withUrl.length;
@@ -1344,6 +2250,34 @@ function showOnboardingModal() {
     }, { once: true });
 }
 
+// ─── Snackbar helper ──────────────────────────────────────────────────────────
+let _snackbarTimer = null;
+function showSnackbar(text, progress) {
+    const el      = document.getElementById('snackbar');
+    const textEl  = document.getElementById('snackbar-text');
+    const barWrap = document.getElementById('snackbar-bar-wrap');
+    const bar     = document.getElementById('snackbar-bar');
+    if (!el) return;
+    clearTimeout(_snackbarTimer);
+    textEl.textContent = text;
+    el.classList.remove('hidden');
+    if (typeof progress === 'number') {
+        barWrap.classList.remove('hidden');
+        bar.style.width = Math.round(progress) + '%';
+    } else {
+        barWrap.classList.add('hidden');
+    }
+}
+function hideSnackbar(delay) {
+    clearTimeout(_snackbarTimer);
+    if (delay) {
+        _snackbarTimer = setTimeout(hideSnackbar, delay);
+        return;
+    }
+    const el = document.getElementById('snackbar');
+    if (el) el.classList.add('hidden');
+}
+
 function bulkCaptureScreenshots() {
     const statusEl = document.getElementById('bulk-capture-status');
     const barWrap  = document.getElementById('bulk-capture-bar-wrap');
@@ -1360,6 +2294,8 @@ function bulkCaptureScreenshots() {
         if (toCapture.length === 0) {
             statusEl.textContent = 'All bookmarks already have screenshots!';
             statusEl.classList.remove('hidden');
+            showSnackbar('All bookmarks already have screenshots!');
+            hideSnackbar(3000);
             return;
         }
 
@@ -1374,16 +2310,21 @@ function bulkCaptureScreenshots() {
 
         function onProgress(type, url, index, _total, dataUrl) {
             const name = titleMap.get(url) || url;
+            const pct = Math.round((index / total) * 100);
             if (type === 'loading') {
-                bar.style.width = Math.round(((index - 1) / total) * 100) + '%';
+                const loadPct = Math.round(((index - 1) / total) * 100);
+                bar.style.width = loadPct + '%';
                 statusEl.textContent = `Capturing ${index}/${total}: ${name}`;
+                showSnackbar(`Capturing ${index}/${total}`, loadPct);
             } else if (type === 'captured') {
-                bar.style.width = Math.round((index / total) * 100) + '%';
+                bar.style.width = pct + '%';
                 statusEl.textContent = `Captured ${index}/${total}: ${name}`;
+                showSnackbar(`Captured ${index}/${total}`, pct);
                 updateThumbnail(url, dataUrl);
             } else if (type === 'failed') {
-                bar.style.width = Math.round((index / total) * 100) + '%';
+                bar.style.width = pct + '%';
                 statusEl.textContent = `Failed ${index}/${total}: ${name}`;
+                showSnackbar(`Failed ${index}/${total}`, pct);
             }
         }
 
@@ -1391,13 +2332,17 @@ function bulkCaptureScreenshots() {
             btn.disabled = false;
             btn.textContent = 'Capture All Missing';
             bar.style.width = stopped ? bar.style.width : '100%';
+            let msg;
             if (stopped) {
-                statusEl.textContent = `Capture stopped · Captured: ${captured}`;
+                msg = `Capture stopped · Captured: ${captured}`;
             } else {
                 const parts = [`Captured: ${captured}`];
                 if (failed > 0) parts.push(`Failed: ${failed}`);
-                statusEl.textContent = parts.join(' · ');
+                msg = parts.join(' · ');
             }
+            statusEl.textContent = msg;
+            showSnackbar(msg, 100);
+            hideSnackbar(4000);
             updateStorageUsage();
             setTimeout(function () { barWrap.classList.add('hidden'); bar.style.width = '0%'; }, 3000);
         }
@@ -1429,6 +2374,7 @@ async function checkBrokenLinks() {
         const reachable = await isUrlReachable(entry.bookmark.url);
         checked++;
         statusEl.textContent = `Checking ${checked} / ${total}…`;
+        showSnackbar(`Checking links ${checked}/${total}`, Math.round((checked / total) * 100));
         if (!reachable) brokenBookmarks.push(entry.bookmark);
     }
 
@@ -1443,8 +2389,13 @@ async function checkBrokenLinks() {
 
     if (brokenBookmarks.length === 0) {
         statusEl.textContent = "All links are reachable.";
+        showSnackbar('All links are reachable.');
+        hideSnackbar(3000);
     } else {
-        statusEl.textContent = `${brokenBookmarks.length} broken link${brokenBookmarks.length > 1 ? 's' : ''} found.`;
+        const msg = `${brokenBookmarks.length} broken link${brokenBookmarks.length > 1 ? 's' : ''} found.`;
+        statusEl.textContent = msg;
+        showSnackbar(msg);
+        hideSnackbar(4000);
         deleteBtn.textContent = "Review & Delete";
         deleteBtn.classList.remove("hidden");
     }
@@ -1452,6 +2403,7 @@ async function checkBrokenLinks() {
 
 function showBrokenConfirmModal() {
     if (brokenBookmarks.length === 0) return;
+    closeAllModals('broken-confirm-modal');
 
     const modal       = document.getElementById('broken-confirm-modal');
     const listEl      = document.getElementById('broken-confirm-list');
@@ -1660,62 +2612,319 @@ function resetFeedbackPanel() {
 }
 
 function wireEventListeners() {
-    // Search
-    const performSearch = debounce(function (searchTerm) { updateView(searchTerm); }, 300);
-    searchInput.addEventListener("input", function () {
-        if (searchInput.value) {
-            clearSearch.classList.remove("hidden");
-            searchIcon.classList.remove("text-zinc-400");
-            searchIcon.classList.add("text-indigo-500");
-            performSearch(searchInput.value.trim().toLowerCase());
-        } else {
+    // Search mode tab buttons
+    document.querySelectorAll('.search-mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            setSearchMode(btn.dataset.searchMode);
+        });
+    });
+
+    // Search (full-page layout only; popover has its own search wired in initPopoverMode)
+    if (searchInput) {
+        const performSearch = debounce(function (searchTerm) { updateView(searchTerm); }, 300);
+        searchInput.addEventListener("input", function () {
+            const hasText = !!searchInput.value;
+            if (SEARCH_MODE === 'bookmarks') {
+                setHeroCompact(hasText);
+                if (hasText) {
+                    if (clearSearch) clearSearch.classList.remove("hidden");
+                    if (searchIcon) { searchIcon.classList.remove("text-zinc-400"); searchIcon.classList.add("text-indigo-500"); }
+                    performSearch(searchInput.value.trim().toLowerCase());
+                } else {
+                    performSearch.cancel && performSearch.cancel();
+                    if (clearSearch) clearSearch.classList.add("hidden");
+                    if (searchIcon) { searchIcon.classList.remove("text-indigo-500"); searchIcon.classList.add("text-zinc-400"); }
+                    updateView("");
+                }
+            }
+        });
+
+        if (clearSearch) clearSearch.addEventListener("click", function () {
+            searchInput.value = "";
             performSearch.cancel && performSearch.cancel();
             clearSearch.classList.add("hidden");
-            searchIcon.classList.remove("text-indigo-500");
-            searchIcon.classList.add("text-zinc-400");
-            updateView("");
+            if (searchIcon) { searchIcon.classList.remove("text-indigo-500"); searchIcon.classList.add("text-zinc-400"); }
+            if (SEARCH_MODE === 'bookmarks') {
+                setHeroCompact(false);
+                updateView("");
+            }
+        });
+    }
+
+    // ─── Web search bar ───────────────────────────────────────────────────────
+    const webInput = document.getElementById('web-search-input');
+    const webClear = document.getElementById('web-clear-search');
+
+    if (webInput) {
+        webInput.addEventListener('input', function () {
+            if (webClear) webClear.classList.toggle('hidden', !webInput.value);
+        });
+        webInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                executeExternalSearch(webInput.value.trim());
+            }
+        });
+    }
+    if (webClear) webClear.addEventListener('click', function () {
+        if (webInput) webInput.value = '';
+        webClear.classList.add('hidden');
+    });
+
+    // ─── Search engine selector ───────────────────────────────────────────────
+    const engineBtn = document.getElementById('engine-btn');
+    const enginePanel = document.getElementById('engine-panel');
+    if (engineBtn && enginePanel) {
+        engineBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            enginePanel.classList.toggle('hidden');
+        });
+        document.querySelectorAll('.engine-option').forEach(function (opt) {
+            opt.addEventListener('click', function (e) {
+                e.stopPropagation();
+                setSearchEngine(opt.dataset.engine);
+                if (webInput) webInput.focus();
+            });
+        });
+        // Close panel on outside click
+        document.addEventListener('click', function () {
+            enginePanel.classList.add('hidden');
+        });
+    }
+
+    // ─── AI chat ──────────────────────────────────────────────────────────────
+    const aiInput = document.getElementById('ai-chat-input');
+    const aiSendBtn = document.getElementById('ai-send-btn');
+    const aiImageInput = document.getElementById('ai-image-input');
+    const aiAttachBtn = document.getElementById('ai-attach-btn');
+    const aiFixedAttachBtn = document.getElementById('ai-chat-fixed-attach');
+    const aiAttachmentRemove = document.getElementById('ai-attachment-remove');
+    if (aiInput) {
+        // Auto-resize textarea
+        aiInput.addEventListener('input', function () {
+            aiInput.style.height = 'auto';
+            aiInput.style.height = Math.min(aiInput.scrollHeight, 128) + 'px';
+        });
+        aiInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const text = aiInput.value.trim();
+                if (text || _aiPendingImage) {
+                    aiInput.value = '';
+                    aiInput.style.height = 'auto';
+                    sendAiMessage(text);
+                }
+            }
+        });
+    }
+    if (aiSendBtn) aiSendBtn.addEventListener('click', function () {
+        if (!aiInput) return;
+        const text = aiInput.value.trim();
+        if (text || _aiPendingImage) {
+            aiInput.value = '';
+            aiInput.style.height = 'auto';
+            sendAiMessage(text);
         }
     });
 
-    clearSearch.addEventListener("click", function () {
-        searchInput.value = "";
-        performSearch.cancel && performSearch.cancel();
-        clearSearch.classList.add("hidden");
-        searchIcon.classList.remove("text-indigo-500");
-        searchIcon.classList.add("text-zinc-400");
-        updateView("");
+    if (aiAttachBtn && aiImageInput) {
+        aiAttachBtn.addEventListener('click', function () {
+            aiImageInput.click();
+        });
+    }
+    if (aiFixedAttachBtn && aiImageInput) {
+        aiFixedAttachBtn.addEventListener('click', function () {
+            aiImageInput.click();
+        });
+    }
+    if (aiImageInput) {
+        aiImageInput.addEventListener('change', function () {
+            handleImagePick(aiImageInput.files?.[0]);
+        });
+    }
+    if (aiAttachmentRemove) {
+        aiAttachmentRemove.addEventListener('click', function () {
+            clearPendingImage();
+        });
+    }
+
+    // Smart chat auto-scroll: follow stream unless user scrolls up
+    const aiMessagesContainer = document.getElementById('ai-chat-messages');
+    if (aiMessagesContainer) {
+        aiMessagesContainer.addEventListener('scroll', function () {
+            // Explicit request: stop auto-scroll when user reaches top
+            if (aiMessagesContainer.scrollTop <= 2) {
+                _aiAutoScroll = false;
+                return;
+            }
+            // Resume only when user goes back near bottom
+            _aiAutoScroll = isAiNearBottom(aiMessagesContainer);
+        });
+    }
+
+    // ─── AI onboarding save button ────────────────────────────────────────────
+    const obKeyInput = document.getElementById('ai-onboarding-key');
+    const obSaveBtn  = document.getElementById('ai-onboarding-save');
+    function saveOnboardingKey() {
+        const key = obKeyInput?.value?.trim();
+        if (!key) { if (obKeyInput) { obKeyInput.focus(); obKeyInput.classList.add('ring-2', 'ring-red-400'); } return; }
+        if (obKeyInput) obKeyInput.classList.remove('ring-2', 'ring-red-400');
+        AI_API_KEY = key;
+        saveAiApiKey(AI_PROVIDER, key);
+        // Focus the textarea so user can start chatting
+        setTimeout(() => document.getElementById('ai-chat-input')?.focus(), 50);
+    }
+    if (obSaveBtn) obSaveBtn.addEventListener('click', saveOnboardingKey);
+    if (obKeyInput) {
+        obKeyInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); saveOnboardingKey(); }
+        });
+    }
+
+    // ─── AI fixed bottom input ────────────────────────────────────────────────
+    const fixedAiInput = document.getElementById('ai-chat-fixed-input');
+    const fixedAiSend = document.getElementById('ai-chat-fixed-send');
+    const newChatBtn = document.getElementById('ai-new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', function () {
+            _aiMessages = [];
+            _currentConvId = null;
+            _aiAutoScroll = true;
+            renderAiMessages();
+            // Restore initial state
+            document.body.classList.remove('ai-chat-active');
+            document.getElementById('ai-chat-fixed-bar')?.classList.add('hidden');
+            document.getElementById('ai-history-panel')?.classList.add('hidden');
+            setHeroCompact(false);
+            const aiInput = document.getElementById('ai-chat-input');
+            if (aiInput) { aiInput.value = ''; setTimeout(() => aiInput.focus(), 50); }
+        });
+    }
+
+    // ─── AI history panel ─────────────────────────────────────────────────────
+    const historyBtn = document.getElementById('ai-history-btn');
+    const historyInlineBtn = document.getElementById('ai-history-inline-btn');
+    const historyPanel = document.getElementById('ai-history-panel');
+    const historyClose = document.getElementById('ai-history-close');
+    const historyClearAll = document.getElementById('ai-history-clear-all');
+    if (historyBtn) {
+        historyBtn.addEventListener('click', function () {
+            const hidden = historyPanel?.classList.toggle('hidden');
+            if (!hidden) renderHistoryPanel();
+        });
+    }
+    if (historyInlineBtn) {
+        historyInlineBtn.addEventListener('click', function () {
+            const hidden = historyPanel?.classList.toggle('hidden');
+            if (!hidden) renderHistoryPanel();
+        });
+    }
+    if (historyClose) {
+        historyClose.addEventListener('click', function () {
+            historyPanel?.classList.add('hidden');
+        });
+    }
+    if (historyClearAll) {
+        historyClearAll.addEventListener('click', function () {
+            if (!confirm('Delete all conversation history?')) return;
+            chrome.storage.local.set({ [AI_HISTORY_KEY]: [] }, function () {
+                _currentConvId = null;
+                renderHistoryPanel();
+            });
+        });
+    }
+    // Close history panel when clicking outside it
+    document.addEventListener('click', function (e) {
+        if (!historyPanel || historyPanel.classList.contains('hidden')) return;
+        const clickedHistoryBtn = (e.target === historyBtn) || historyBtn?.contains(e.target);
+        const clickedInlineHistoryBtn = (e.target === historyInlineBtn) || historyInlineBtn?.contains(e.target);
+        if (!historyPanel.contains(e.target) && !clickedHistoryBtn && !clickedInlineHistoryBtn) {
+            historyPanel.classList.add('hidden');
+        }
     });
+    if (fixedAiInput) {
+        fixedAiInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const text = fixedAiInput.value.trim();
+                if (text || _aiPendingImage) {
+                    fixedAiInput.value = '';
+                    sendAiMessage(text);
+                }
+            }
+        });
+    }
+    if (fixedAiSend) {
+        fixedAiSend.addEventListener('click', function () {
+            const text = fixedAiInput?.value?.trim();
+            if (text || _aiPendingImage) {
+                fixedAiInput.value = '';
+                sendAiMessage(text);
+            }
+        });
+    }
+
+    // ─── AI provider settings ─────────────────────────────────────────────────
+    const aiProviderSelect = document.getElementById('ai-provider-select');
+    const aiApiKeyInput = document.getElementById('ai-api-key');
+    const aiKeyToggle = document.getElementById('ai-key-toggle');
+
+    if (aiProviderSelect) {
+        aiProviderSelect.addEventListener('change', function () {
+            setAiProvider(aiProviderSelect.value);
+            // Clear conversation when switching providers
+            _aiMessages = [];
+            _currentConvId = null;
+            _aiAutoScroll = true;
+            renderAiMessages();
+        });
+    }
+    if (aiApiKeyInput) {
+        aiApiKeyInput.addEventListener('change', function () {
+            AI_API_KEY = aiApiKeyInput.value.trim();
+            saveAiApiKey(AI_PROVIDER, AI_API_KEY);
+        });
+    }
+    if (aiKeyToggle && aiApiKeyInput) {
+        aiKeyToggle.addEventListener('click', function () {
+            const isPassword = aiApiKeyInput.type === 'password';
+            aiApiKeyInput.type = isPassword ? 'text' : 'password';
+        });
+    }
 
 
     // Undo toast
-    document.getElementById("undo-btn").addEventListener("click", function () {
-        undoPendingDelete();
-    });
+    const undoBtn = document.getElementById("undo-btn");
+    if (undoBtn) undoBtn.addEventListener("click", undoPendingDelete);
 
     // Duplicate banner
-    document.getElementById("show-duplicates-btn").addEventListener("click", function () {
-        showDuplicatesView();
-    });
+    const showDupBtn = document.getElementById("show-duplicates-btn");
+    if (showDupBtn) showDupBtn.addEventListener("click", showDuplicatesView);
 
-    // Dedup button (top-left controls)
-    document.getElementById("dedup-btn").addEventListener("click", function () {
-        openDedupReview();
-    });
+    // Dedup button (full-page top-left controls — may not exist in all layouts)
+    const dedupBtn = document.getElementById("dedup-btn");
+    if (dedupBtn) dedupBtn.addEventListener("click", openDedupReview);
 
     // Dedup review modal controls
-    document.getElementById('dedup-review-close').addEventListener('click', _closeDedupReview);
-    document.getElementById('dedup-skip-btn').addEventListener('click', _advanceDedupGroup);
-    document.getElementById('dedup-next-btn').addEventListener('click', _advanceDedupGroup);
-    document.getElementById('dedup-review-modal').addEventListener('click', function (e) {
+    const dedupClose = document.getElementById('dedup-review-close');
+    const dedupSkip  = document.getElementById('dedup-skip-btn');
+    const dedupNext  = document.getElementById('dedup-next-btn');
+    const dedupModal = document.getElementById('dedup-review-modal');
+    if (dedupClose) dedupClose.addEventListener('click', _closeDedupReview);
+    if (dedupSkip)  dedupSkip.addEventListener('click', _advanceDedupGroup);
+    if (dedupNext)  dedupNext.addEventListener('click', _advanceDedupGroup);
+    if (dedupModal) dedupModal.addEventListener('click', function (e) {
         if (e.target === this) _closeDedupReview();
     });
 
     // Export
-    document.getElementById("export-json-btn").addEventListener("click", function () {
+    const exportJsonBtn = document.getElementById("export-json-btn");
+    const exportHtmlBtn = document.getElementById("export-html-btn");
+    if (exportJsonBtn) exportJsonBtn.addEventListener("click", function () {
         exportAsJSON();
         document.getElementById("settings-modal").classList.add("hidden");
     });
-    document.getElementById("export-html-btn").addEventListener("click", function () {
+    if (exportHtmlBtn) exportHtmlBtn.addEventListener("click", function () {
         exportAsHTML();
         document.getElementById("settings-modal").classList.add("hidden");
     });
@@ -1750,7 +2959,8 @@ function wireEventListeners() {
 
     const WEB3FORMS_KEY = '56a936e3-0acc-4228-b78a-35aa7b5ddd13';
 
-    document.getElementById('feedback-form').addEventListener('submit', async function (e) {
+    const feedbackForm = document.getElementById('feedback-form');
+    if (feedbackForm) feedbackForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         const name     = document.getElementById('feedback-name').value.trim();
         const email    = document.getElementById('feedback-email').value.trim();
@@ -1783,7 +2993,7 @@ function wireEventListeners() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     access_key: WEB3FORMS_KEY,
-                    subject: `Bookmark Hero Feedback — ${category}`,
+                    subject: `Thumbmark Feedback — ${category}`,
                     name,
                     email: email || 'Not provided',
                     category,
@@ -1810,20 +3020,21 @@ function wireEventListeners() {
             submit.disabled = false;
         }
         status.classList.remove('hidden');
-    });
+    });  // end feedbackForm if
 
     // Bulk capture
-    document.getElementById("bulk-capture-btn").addEventListener("click", function () {
-        bulkCaptureScreenshots();
-    });
+    const bulkCaptureBtn = document.getElementById("bulk-capture-btn");
+    if (bulkCaptureBtn) bulkCaptureBtn.addEventListener("click", bulkCaptureScreenshots);
+    const bulkCaptureTopLeft = document.getElementById("bulk-capture-topleft-btn");
+    if (bulkCaptureTopLeft) bulkCaptureTopLeft.addEventListener("click", bulkCaptureScreenshots);
 
     // Broken links
-    document.getElementById("check-broken-btn").addEventListener("click", function () {
-        checkBrokenLinks();
-    });
-    document.getElementById("delete-broken-btn").addEventListener("click", function () {
-        showBrokenConfirmModal();
-    });
+    const checkBrokenBtn  = document.getElementById("check-broken-btn");
+    const deleteBrokenBtn = document.getElementById("delete-broken-btn");
+    if (checkBrokenBtn)  checkBrokenBtn.addEventListener("click", checkBrokenLinks);
+    if (deleteBrokenBtn) deleteBrokenBtn.addEventListener("click", showBrokenConfirmModal);
+    const brokenLinkTopLeft = document.getElementById("broken-link-topleft-btn");
+    if (brokenLinkTopLeft) brokenLinkTopLeft.addEventListener("click", checkBrokenLinks);
 
     // Edit modal
     const cancelEditButton = document.getElementById("cancel-edit");
@@ -1899,6 +3110,75 @@ function wireEventListeners() {
     if (managePanelEl) managePanelEl.addEventListener('click', function (e) {
         if (e.target === managePanelEl) closeManagePanel();
     });
+
+    // Add bookmark modal
+    const addBookmarkBtn    = document.getElementById('add-bookmark-btn');
+    const cancelAddBtn      = document.getElementById('cancel-add');
+    const saveAddBtn        = document.getElementById('save-add');
+    const addModalEl        = document.getElementById('add-modal');
+    const addFolderBtn      = document.getElementById('add-folder-btn');
+    const addFolderPanel    = document.getElementById('add-folder-panel');
+    const addFolderArrow    = document.getElementById('add-folder-arrow');
+    const addErrorEl        = document.getElementById('add-error');
+
+    if (addBookmarkBtn) addBookmarkBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openAddModal();
+    });
+    if (cancelAddBtn) cancelAddBtn.addEventListener('click', closeAddModal);
+    if (addModalEl) addModalEl.addEventListener('click', function (e) {
+        if (e.target === addModalEl) closeAddModal();
+    });
+    if (saveAddBtn) {
+        saveAddBtn.addEventListener('click', function () {
+            const title    = document.getElementById('add-title').value.trim();
+            const url      = document.getElementById('add-url').value.trim();
+            const parentId = document.getElementById('add-folder-dropdown').value;
+
+            function showErr(msg) {
+                if (addErrorEl) { addErrorEl.textContent = msg; addErrorEl.classList.remove('hidden'); }
+            }
+            function clearErr() {
+                if (addErrorEl) { addErrorEl.textContent = ''; addErrorEl.classList.add('hidden'); }
+            }
+
+            if (!title) { showErr('Please enter a title.'); document.getElementById('add-title').focus(); return; }
+            if (!url)   { showErr('Please enter a URL.');   document.getElementById('add-url').focus();   return; }
+            if (!parentId) { showErr('Please select a folder.'); return; }
+            clearErr();
+
+            let finalUrl = url;
+            if (!/^https?:\/\//i.test(finalUrl)) finalUrl = 'https://' + finalUrl;
+
+            chrome.bookmarks.create({ parentId, title, url: finalUrl }, function () {
+                closeAddModal();
+                refreshApp();
+            });
+        });
+    }
+    ['add-title', 'add-url'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', function () {
+            if (addErrorEl) { addErrorEl.textContent = ''; addErrorEl.classList.add('hidden'); }
+        });
+    });
+    if (addFolderBtn && addFolderPanel) {
+        addFolderBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const isOpen = !addFolderPanel.classList.contains('hidden');
+            addFolderPanel.classList.toggle('hidden');
+            addFolderBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+            if (addFolderArrow) addFolderArrow.classList.toggle('rotate-180', !isOpen);
+        });
+        addFolderPanel.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', function () {
+            if (!addFolderPanel.classList.contains('hidden')) {
+                addFolderPanel.classList.add('hidden');
+                addFolderBtn.setAttribute('aria-expanded', 'false');
+                if (addFolderArrow) addFolderArrow.classList.remove('rotate-180');
+            }
+        });
+    }
 }
 
 // ─── Globals for keyboard-shortcuts.js ───────────────────────────────────────
@@ -1910,6 +3190,8 @@ window.captureScreenshot     = captureScreenshot;
 window.handleScreenshotCapture = handleScreenshotCapture;
 window.openManagePanel       = openManagePanel;
 window.closeManagePanel      = closeManagePanel;
+window.openAddModal          = openAddModal;
+window.closeAddModal         = closeAddModal;
 
 // ─── Popover mode ─────────────────────────────────────────────────────────────
 
@@ -1933,14 +3215,17 @@ function initPopoverMode() {
     // Move settings-modal into the settings page content area (strip modal positioning)
     const settingsPageContent = document.getElementById('popover-settings-content');
     const settingsModalEl = document.getElementById('settings-modal');
-    settingsModalEl.className = 'flex flex-col relative overflow-hidden';
+    settingsModalEl.className = 'flex flex-col relative';
     settingsModalEl.dataset.embedded = 'true'; // prevents Escape handler from treating it as a dialog
     // Strip the inner card wrapper styling so it reads as a flat embedded section
     const settingsInnerCard = settingsModalEl.querySelector('.rounded-xl');
-    if (settingsInnerCard) settingsInnerCard.className = 'flex flex-col relative overflow-hidden flex-1';
+    if (settingsInnerCard) settingsInnerCard.className = 'flex flex-col relative flex-1';
     // Hide the modal header (popover has its own settings page header / back button)
     const settingsModalHeader = document.getElementById('settings-modal-header');
     if (settingsModalHeader) settingsModalHeader.classList.add('hidden');
+    // Remove max-h constraint so the parent container handles scrolling
+    const settingsScrollBody = settingsModalEl.querySelector('[class*="max-h-"]');
+    if (settingsScrollBody) { settingsScrollBody.classList.remove('max-h-[70vh]', 'overflow-y-auto'); }
     settingsPageContent.appendChild(settingsModalEl);
     settingsModalEl.classList.remove('hidden');
 
@@ -1967,8 +3252,8 @@ function initPopoverMode() {
     });
 
     // Wire footer buttons
-    document.getElementById('popover-dedup-btn').addEventListener('click', function () {
-        openDedupReview();
+    document.getElementById('popover-capture-btn').addEventListener('click', function () {
+        bulkCaptureScreenshots();
     });
     document.getElementById('popover-manage-btn').addEventListener('click', function () {
         document.getElementById('popover-manage-page').classList.remove('hidden');
@@ -2069,7 +3354,7 @@ function initPopoverMode() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         access_key: WEB3FORMS_KEY_POPOVER,
-                        subject: `Bookmark Hero Feedback — ${category}`,
+                        subject: `Thumbmark Feedback — ${category}`,
                         name,
                         email: email || 'Not provided',
                         category,
@@ -2098,6 +3383,12 @@ function initPopoverMode() {
             status.classList.remove('hidden');
         });
     }
+
+    // Floating add bookmark button (popover)
+    const popoverAddBtn = document.getElementById('popover-add-bookmark-btn');
+    if (popoverAddBtn) popoverAddBtn.addEventListener('click', function () {
+        openAddModal();
+    });
 }
 
 function buildPopoverFilterPanel() {
@@ -2290,7 +3581,51 @@ function buildPopoverCard(bookmarkNode, folderName) {
     deleteBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         e.preventDefault();
-        if (window.deleteBookmark) window.deleteBookmark(bookmarkNode);
+
+        // Show inline confirmation
+        actions.classList.add('!hidden');
+
+        const confirmBar = document.createElement('div');
+        confirmBar.className = 'absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10 bg-white/95 dark:bg-zinc-800/95 border border-rose-200 dark:border-rose-700 rounded-md shadow-md px-2 py-1';
+
+        const label = document.createElement('span');
+        label.textContent = 'Delete?';
+        label.className = 'text-xs font-medium text-zinc-700 dark:text-zinc-200 whitespace-nowrap';
+
+        const yesBtn = document.createElement('button');
+        yesBtn.textContent = 'Yes';
+        yesBtn.className = 'text-xs font-semibold px-2 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-500 transition-colors';
+
+        const noBtn = document.createElement('button');
+        noBtn.textContent = 'No';
+        noBtn.className = 'text-xs font-medium px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors';
+
+        function dismiss() {
+            clearTimeout(autoCancel);
+            confirmBar.remove();
+            actions.classList.remove('!hidden');
+        }
+
+        yesBtn.addEventListener('click', function(e2) {
+            e2.stopPropagation();
+            e2.preventDefault();
+            dismiss();
+            if (window.deleteBookmark) window.deleteBookmark(bookmarkNode);
+        });
+
+        noBtn.addEventListener('click', function(e2) {
+            e2.stopPropagation();
+            e2.preventDefault();
+            dismiss();
+        });
+
+        confirmBar.appendChild(label);
+        confirmBar.appendChild(yesBtn);
+        confirmBar.appendChild(noBtn);
+        wrapper.appendChild(confirmBar);
+        noBtn.focus();
+
+        const autoCancel = setTimeout(dismiss, 5000);
     });
 
     actions.appendChild(editBtn);
@@ -2308,12 +3643,24 @@ function initViewModeToggle() {
     });
 
     const newTabToggle = document.getElementById('new-tab-toggle');
+    const newTabTopToggle = document.getElementById('new-tab-top-toggle');
+
+    function handleToggleClick(toggleEl) {
+        if (!toggleEl) return;
+        const current = toggleEl.getAttribute('aria-checked') === 'true';
+        const next = !current;
+        chrome.storage.sync.set({ showOnNewTab: next });
+        updateNewTabToggleUI(next);
+    }
+
     if (newTabToggle) {
         newTabToggle.addEventListener('click', function () {
-            const current = newTabToggle.getAttribute('aria-checked') === 'true';
-            const next = !current;
-            chrome.storage.sync.set({ showOnNewTab: next });
-            updateNewTabToggleUI(next);
+            handleToggleClick(newTabToggle);
+        });
+    }
+    if (newTabTopToggle) {
+        newTabTopToggle.addEventListener('click', function () {
+            handleToggleClick(newTabTopToggle);
         });
     }
 
@@ -2352,17 +3699,22 @@ function updateViewModeUI(mode) {
 }
 
 function updateNewTabToggleUI(enabled) {
-    const toggle = document.getElementById('new-tab-toggle');
-    if (!toggle) return;
-    toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
-    const thumb = toggle.querySelector('span');
-    if (enabled) {
-        toggle.classList.remove('bg-zinc-300', 'dark:bg-zinc-600');
-        toggle.classList.add('bg-indigo-500');
-        if (thumb) { thumb.classList.remove('translate-x-1'); thumb.classList.add('translate-x-4'); }
-    } else {
-        toggle.classList.remove('bg-indigo-500');
-        toggle.classList.add('bg-zinc-300', 'dark:bg-zinc-600');
-        if (thumb) { thumb.classList.remove('translate-x-4'); thumb.classList.add('translate-x-1'); }
-    }
+    const toggles = [
+        document.getElementById('new-tab-toggle'),
+        document.getElementById('new-tab-top-toggle')
+    ].filter(Boolean);
+
+    toggles.forEach(function (toggle) {
+        toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+        const thumb = toggle.querySelector('span');
+        if (enabled) {
+            toggle.classList.remove('bg-zinc-300', 'dark:bg-zinc-600');
+            toggle.classList.add('bg-indigo-500');
+            if (thumb) { thumb.classList.remove('translate-x-1'); thumb.classList.add('translate-x-4'); }
+        } else {
+            toggle.classList.remove('bg-indigo-500');
+            toggle.classList.add('bg-zinc-300', 'dark:bg-zinc-600');
+            if (thumb) { thumb.classList.remove('translate-x-4'); thumb.classList.add('translate-x-1'); }
+        }
+    });
 }

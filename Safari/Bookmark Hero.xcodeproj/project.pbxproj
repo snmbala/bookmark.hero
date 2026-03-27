@@ -1,0 +1,651 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F5739BBE2F61EFF400460355 /* edge.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA92F61EFF400460355 /* edge.svg */; };
+		F5739BBF2F61EFF400460355 /* camera.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA52F61EFF400460355 /* camera.svg */; };
+		F5739BC02F61EFF400460355 /* chevron-down.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA62F61EFF400460355 /* chevron-down.svg */; };
+		F5739BC12F61EFF400460355 /* chrome.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA72F61EFF400460355 /* chrome.svg */; };
+		F5739BC22F61EFF400460355 /* bookmark.png in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA22F61EFF400460355 /* bookmark.png */; };
+		F5739BC32F61EFF400460355 /* trash.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB22F61EFF400460355 /* trash.svg */; };
+		F5739BC42F61EFF400460355 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB82F61EFF400460355 /* background.js */; };
+		F5739BC52F61EFF400460355 /* Bookmark +.jpg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA32F61EFF400460355 /* Bookmark +.jpg */; };
+		F5739BC62F61EFF400460355 /* more.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAB2F61EFF400460355 /* more.svg */; };
+		F5739BC72F61EFF400460355 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = F5739BBB2F61EFF400460355 /* manifest.json */; };
+		F5739BC82F61EFF400460355 /* screenshots.png in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAE2F61EFF400460355 /* screenshots.png */; };
+		F5739BC92F61EFF400460355 /* search-blue.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB02F61EFF400460355 /* search-blue.svg */; };
+		F5739BCA2F61EFF400460355 /* search.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAF2F61EFF400460355 /* search.svg */; };
+		F5739BCB2F61EFF400460355 /* edit.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAA2F61EFF400460355 /* edit.svg */; };
+		F5739BCC2F61EFF400460355 /* more-hover.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAC2F61EFF400460355 /* more-hover.svg */; };
+		F5739BCD2F61EFF400460355 /* styles.css in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB62F61EFF400460355 /* styles.css */; };
+		F5739BCE2F61EFF400460355 /* cup.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA82F61EFF400460355 /* cup.svg */; };
+		F5739BCF2F61EFF400460355 /* safari.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BAD2F61EFF400460355 /* safari.svg */; };
+		F5739BD02F61EFF400460355 /* main.html in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB92F61EFF400460355 /* main.html */; };
+		F5739BD12F61EFF400460355 /* main.js in Resources */ = {isa = PBXBuildFile; fileRef = F5739BBA2F61EFF400460355 /* main.js */; };
+		F5739BD22F61EFF400460355 /* x.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB32F61EFF400460355 /* x.svg */; };
+		F5739BD32F61EFF400460355 /* sort.svg in Resources */ = {isa = PBXBuildFile; fileRef = F5739BB12F61EFF400460355 /* sort.svg */; };
+		F5739BD42F61EFF400460355 /* Bookmark +.png in Resources */ = {isa = PBXBuildFile; fileRef = F5739BA42F61EFF400460355 /* Bookmark +.png */; };
+		F5739BD52F61EFF400460355 /* popover-init.js in Resources */ = {isa = PBXBuildFile; fileRef = F5739BBC2F61EFF400460355 /* popover-init.js */; };
+		F5AA7BB72F61EC8E00B858F4 /* Bookmark Hero Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5AA7BB62F61EC8E00B858F4 /* Bookmark Hero Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F5AA7BBC2F61EC8E00B858F4 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5AA7BBB2F61EC8E00B858F4 /* SafariWebExtensionHandler.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F5AA7BB82F61EC8E00B858F4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F5AA7B932F61EC8D00B858F4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F5AA7BB52F61EC8E00B858F4;
+			remoteInfo = "Bookmark Hero Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F5AA7BC32F61EC8E00B858F4 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F5AA7BB72F61EC8E00B858F4 /* Bookmark Hero Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		F5739BA22F61EFF400460355 /* bookmark.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = bookmark.png; sourceTree = "<group>"; };
+		F5739BA32F61EFF400460355 /* Bookmark +.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "Bookmark +.jpg"; sourceTree = "<group>"; };
+		F5739BA42F61EFF400460355 /* Bookmark +.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Bookmark +.png"; sourceTree = "<group>"; };
+		F5739BA52F61EFF400460355 /* camera.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = camera.svg; sourceTree = "<group>"; };
+		F5739BA62F61EFF400460355 /* chevron-down.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "chevron-down.svg"; sourceTree = "<group>"; };
+		F5739BA72F61EFF400460355 /* chrome.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = chrome.svg; sourceTree = "<group>"; };
+		F5739BA82F61EFF400460355 /* cup.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = cup.svg; sourceTree = "<group>"; };
+		F5739BA92F61EFF400460355 /* edge.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = edge.svg; sourceTree = "<group>"; };
+		F5739BAA2F61EFF400460355 /* edit.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = edit.svg; sourceTree = "<group>"; };
+		F5739BAB2F61EFF400460355 /* more.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = more.svg; sourceTree = "<group>"; };
+		F5739BAC2F61EFF400460355 /* more-hover.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "more-hover.svg"; sourceTree = "<group>"; };
+		F5739BAD2F61EFF400460355 /* safari.svg */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = safari.svg; sourceTree = "<group>"; };
+		F5739BAE2F61EFF400460355 /* screenshots.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = screenshots.png; sourceTree = "<group>"; };
+		F5739BAF2F61EFF400460355 /* search.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = search.svg; sourceTree = "<group>"; };
+		F5739BB02F61EFF400460355 /* search-blue.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "search-blue.svg"; sourceTree = "<group>"; };
+		F5739BB12F61EFF400460355 /* sort.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = sort.svg; sourceTree = "<group>"; };
+		F5739BB22F61EFF400460355 /* trash.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = trash.svg; sourceTree = "<group>"; };
+		F5739BB32F61EFF400460355 /* x.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = x.svg; sourceTree = "<group>"; };
+		F5739BB62F61EFF400460355 /* styles.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = styles.css; sourceTree = "<group>"; };
+		F5739BB82F61EFF400460355 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
+		F5739BB92F61EFF400460355 /* main.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = main.html; sourceTree = "<group>"; };
+		F5739BBA2F61EFF400460355 /* main.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = main.js; sourceTree = "<group>"; };
+		F5739BBB2F61EFF400460355 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		F5739BBC2F61EFF400460355 /* popover-init.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "popover-init.js"; sourceTree = "<group>"; };
+		F5AA7B9B2F61EC8D00B858F4 /* Bookmark Hero.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Bookmark Hero.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5AA7BB62F61EC8E00B858F4 /* Bookmark Hero Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Bookmark Hero Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5AA7BBB2F61EC8E00B858F4 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		F5AA7BBD2F61EC8E00B858F4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F5AA7B982F61EC8D00B858F4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5AA7BB32F61EC8E00B858F4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F5739BB42F61EFF400460355 /* icons */ = {
+			isa = PBXGroup;
+			children = (
+				F5739BA22F61EFF400460355 /* bookmark.png */,
+				F5739BA32F61EFF400460355 /* Bookmark +.jpg */,
+				F5739BA42F61EFF400460355 /* Bookmark +.png */,
+				F5739BA52F61EFF400460355 /* camera.svg */,
+				F5739BA62F61EFF400460355 /* chevron-down.svg */,
+				F5739BA72F61EFF400460355 /* chrome.svg */,
+				F5739BA82F61EFF400460355 /* cup.svg */,
+				F5739BA92F61EFF400460355 /* edge.svg */,
+				F5739BAA2F61EFF400460355 /* edit.svg */,
+				F5739BAB2F61EFF400460355 /* more.svg */,
+				F5739BAC2F61EFF400460355 /* more-hover.svg */,
+				F5739BAD2F61EFF400460355 /* safari.svg */,
+				F5739BAE2F61EFF400460355 /* screenshots.png */,
+				F5739BAF2F61EFF400460355 /* search.svg */,
+				F5739BB02F61EFF400460355 /* search-blue.svg */,
+				F5739BB12F61EFF400460355 /* sort.svg */,
+				F5739BB22F61EFF400460355 /* trash.svg */,
+				F5739BB32F61EFF400460355 /* x.svg */,
+			);
+			path = icons;
+			sourceTree = "<group>";
+		};
+		F5739BB52F61EFF400460355 /* assets */ = {
+			isa = PBXGroup;
+			children = (
+				F5739BB42F61EFF400460355 /* icons */,
+			);
+			path = assets;
+			sourceTree = "<group>";
+		};
+		F5739BB72F61EFF400460355 /* css */ = {
+			isa = PBXGroup;
+			children = (
+				F5739BB62F61EFF400460355 /* styles.css */,
+			);
+			path = css;
+			sourceTree = "<group>";
+		};
+		F5739BBD2F61EFF400460355 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				F5739BB52F61EFF400460355 /* assets */,
+				F5739BB72F61EFF400460355 /* css */,
+				F5739BB82F61EFF400460355 /* background.js */,
+				F5739BB92F61EFF400460355 /* main.html */,
+				F5739BBA2F61EFF400460355 /* main.js */,
+				F5739BBB2F61EFF400460355 /* manifest.json */,
+				F5739BBC2F61EFF400460355 /* popover-init.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		F5AA7B922F61EC8D00B858F4 = {
+			isa = PBXGroup;
+			children = (
+				F5AA7BBA2F61EC8E00B858F4 /* Bookmark Hero Extension */,
+				F5AA7B9C2F61EC8D00B858F4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F5AA7B9C2F61EC8D00B858F4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F5AA7B9B2F61EC8D00B858F4 /* Bookmark Hero.app */,
+				F5AA7BB62F61EC8E00B858F4 /* Bookmark Hero Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F5AA7BBA2F61EC8E00B858F4 /* Bookmark Hero Extension */ = {
+			isa = PBXGroup;
+			children = (
+				F5739BBD2F61EFF400460355 /* Resources */,
+				F5AA7BBB2F61EC8E00B858F4 /* SafariWebExtensionHandler.swift */,
+				F5AA7BBD2F61EC8E00B858F4 /* Info.plist */,
+			);
+			path = "Bookmark Hero Extension";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F5AA7B9A2F61EC8D00B858F4 /* Bookmark Hero */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F5AA7BC42F61EC8E00B858F4 /* Build configuration list for PBXNativeTarget "Bookmark Hero" */;
+			buildPhases = (
+				F5AA7B972F61EC8D00B858F4 /* Sources */,
+				F5AA7B982F61EC8D00B858F4 /* Frameworks */,
+				F5AA7B992F61EC8D00B858F4 /* Resources */,
+				F5AA7BC32F61EC8E00B858F4 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F5AA7BB92F61EC8E00B858F4 /* PBXTargetDependency */,
+			);
+			name = "Bookmark Hero";
+			packageProductDependencies = (
+			);
+			productName = "Bookmark Hero";
+			productReference = F5AA7B9B2F61EC8D00B858F4 /* Bookmark Hero.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F5AA7BB52F61EC8E00B858F4 /* Bookmark Hero Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F5AA7BC02F61EC8E00B858F4 /* Build configuration list for PBXNativeTarget "Bookmark Hero Extension" */;
+			buildPhases = (
+				F5AA7BB22F61EC8E00B858F4 /* Sources */,
+				F5AA7BB32F61EC8E00B858F4 /* Frameworks */,
+				F5AA7BB42F61EC8E00B858F4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Bookmark Hero Extension";
+			packageProductDependencies = (
+			);
+			productName = "Bookmark Hero Extension";
+			productReference = F5AA7BB62F61EC8E00B858F4 /* Bookmark Hero Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F5AA7B932F61EC8D00B858F4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					F5AA7B9A2F61EC8D00B858F4 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					F5AA7BB52F61EC8E00B858F4 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+				};
+			};
+			buildConfigurationList = F5AA7B962F61EC8D00B858F4 /* Build configuration list for PBXProject "Bookmark Hero" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = F5AA7B922F61EC8D00B858F4;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F5AA7B9C2F61EC8D00B858F4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F5AA7B9A2F61EC8D00B858F4 /* Bookmark Hero */,
+				F5AA7BB52F61EC8E00B858F4 /* Bookmark Hero Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F5AA7B992F61EC8D00B858F4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5AA7BB42F61EC8E00B858F4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5739BBE2F61EFF400460355 /* edge.svg in Resources */,
+				F5739BBF2F61EFF400460355 /* camera.svg in Resources */,
+				F5739BC02F61EFF400460355 /* chevron-down.svg in Resources */,
+				F5739BC12F61EFF400460355 /* chrome.svg in Resources */,
+				F5739BC22F61EFF400460355 /* bookmark.png in Resources */,
+				F5739BC32F61EFF400460355 /* trash.svg in Resources */,
+				F5739BC42F61EFF400460355 /* background.js in Resources */,
+				F5739BC52F61EFF400460355 /* Bookmark +.jpg in Resources */,
+				F5739BC62F61EFF400460355 /* more.svg in Resources */,
+				F5739BC72F61EFF400460355 /* manifest.json in Resources */,
+				F5739BC82F61EFF400460355 /* screenshots.png in Resources */,
+				F5739BC92F61EFF400460355 /* search-blue.svg in Resources */,
+				F5739BCA2F61EFF400460355 /* search.svg in Resources */,
+				F5739BCB2F61EFF400460355 /* edit.svg in Resources */,
+				F5739BCC2F61EFF400460355 /* more-hover.svg in Resources */,
+				F5739BCD2F61EFF400460355 /* styles.css in Resources */,
+				F5739BCE2F61EFF400460355 /* cup.svg in Resources */,
+				F5739BCF2F61EFF400460355 /* safari.svg in Resources */,
+				F5739BD02F61EFF400460355 /* main.html in Resources */,
+				F5739BD12F61EFF400460355 /* main.js in Resources */,
+				F5739BD22F61EFF400460355 /* x.svg in Resources */,
+				F5739BD32F61EFF400460355 /* sort.svg in Resources */,
+				F5739BD42F61EFF400460355 /* Bookmark +.png in Resources */,
+				F5739BD52F61EFF400460355 /* popover-init.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F5AA7B972F61EC8D00B858F4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F5AA7BB22F61EC8E00B858F4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5AA7BBC2F61EC8E00B858F4 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F5AA7BB92F61EC8E00B858F4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F5AA7BB52F61EC8E00B858F4 /* Bookmark Hero Extension */;
+			targetProxy = F5AA7BB82F61EC8E00B858F4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		F5AA7BBE2F61EC8E00B858F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F5AA7BBF2F61EC8E00B858F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		F5AA7BC12F61EC8E00B858F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7A347A4G3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Bookmark Hero Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bookmark Hero Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.balamm.bookmarkhero.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F5AA7BC22F61EC8E00B858F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7A347A4G3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Bookmark Hero Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bookmark Hero Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.balamm.bookmarkhero.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F5AA7BC52F61EC8E00B858F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7A347A4G3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Bookmark Hero/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bookmark Hero";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.balamm.Bookmark-Hero";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F5AA7BC62F61EC8E00B858F4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X7A347A4G3;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Bookmark Hero/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bookmark Hero";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.balamm.Bookmark-Hero";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F5AA7B962F61EC8D00B858F4 /* Build configuration list for PBXProject "Bookmark Hero" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F5AA7BBE2F61EC8E00B858F4 /* Debug */,
+				F5AA7BBF2F61EC8E00B858F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F5AA7BC02F61EC8E00B858F4 /* Build configuration list for PBXNativeTarget "Bookmark Hero Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F5AA7BC12F61EC8E00B858F4 /* Debug */,
+				F5AA7BC22F61EC8E00B858F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F5AA7BC42F61EC8E00B858F4 /* Build configuration list for PBXNativeTarget "Bookmark Hero" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F5AA7BC52F61EC8E00B858F4 /* Debug */,
+				F5AA7BC62F61EC8E00B858F4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F5AA7B932F61EC8D00B858F4 /* Project object */;
+}

@@ -1,161 +1,107 @@
 
-// Bookmark tree cache for performance
 let bookmarkCache = { data: null, timestamp: 0 };
-const CACHE_TTL = 5000; // 5 seconds
+const CACHE_TTL = 5000;
 
-// Performance optimization: Debounce function with cancellation support
 export function debounce(func, wait) {
     let timeout;
-    const executedFunction = function (...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
+    const fn = (...args) => {
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func(...args), wait);
     };
-
-    executedFunction.cancel = function () {
-        clearTimeout(timeout);
-    };
-
-    return executedFunction;
+    fn.cancel = () => clearTimeout(timeout);
+    return fn;
 }
 
-// Performance optimization: Cached bookmark retrieval
 export function getCachedBookmarks() {
     const now = Date.now();
-    if (bookmarkCache.data && (now - bookmarkCache.timestamp) < CACHE_TTL) {
+    if (bookmarkCache.data && now - bookmarkCache.timestamp < CACHE_TTL)
         return Promise.resolve(bookmarkCache.data);
-    }
-
-    return new Promise((resolve) => {
-        chrome.bookmarks.getTree((bookmarks) => {
-            bookmarkCache.data = bookmarks;
-            bookmarkCache.timestamp = now;
+    return new Promise(resolve =>
+        chrome.bookmarks.getTree(bookmarks => {
+            bookmarkCache = { data: bookmarks, timestamp: now };
             resolve(bookmarks);
-        });
-    });
+        })
+    );
 }
 
-// Force-invalidate cache so next getCachedBookmarks() fetches fresh data
 export function invalidateCache() {
     bookmarkCache = { data: null, timestamp: 0 };
 }
 
-export function collectBookmarks(node, allBookmarks, folderName = "") {
+export function collectBookmarks(node, out, folderName = "") {
     if (node.children) {
-        folderName = node.title;
-        for (const child of node.children) {
-            collectBookmarks(child, allBookmarks, folderName);
-        }
+        for (const child of node.children) collectBookmarks(child, out, node.title);
     } else {
-        allBookmarks.push({ bookmark: node, folder: folderName });
+        out.push({ bookmark: node, folder: folderName });
     }
 }
 
-// Sort by most recently added (dateAdded DESC)
-function sortByRecentlyAdded(bookmarks) {
-    return [...bookmarks].sort((a, b) =>
-        (b.bookmark.dateAdded || 0) - (a.bookmark.dateAdded || 0)
-    );
+function getDomain(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
 }
 
-// Sort alphabetically A → Z
-export function sortBookmarksByTitle(bookmarks) {
-    return [...bookmarks].sort((a, b) =>
-        (a.bookmark.title || "").localeCompare(b.bookmark.title || "")
-    );
+const SORT_COMPARATORS = {
+    title:  (a, b) => (a.bookmark.title || "").localeCompare(b.bookmark.title || ""),
+    domain: (a, b) => getDomain(a.bookmark.url).localeCompare(getDomain(b.bookmark.url)),
+    "recently-added": (a, b) => (b.bookmark.dateAdded || 0) - (a.bookmark.dateAdded || 0),
+};
+
+function sortBookmarks(bookmarks, sortBy) {
+    return [...bookmarks].sort(SORT_COMPARATORS[sortBy] || SORT_COMPARATORS["recently-added"]);
 }
 
-// Sort by domain (hostname)
-export function sortBookmarksByDomain(bookmarks) {
-    return [...bookmarks].sort((a, b) => {
-        let domainA = "", domainB = "";
-        try { domainA = new URL(a.bookmark.url).hostname.replace(/^www\./, ""); } catch (_) { }
-        try { domainB = new URL(b.bookmark.url).hostname.replace(/^www\./, ""); } catch (_) { }
-        return domainA.localeCompare(domainB);
-    });
-}
+// Keep named exports for backward compatibility
+export const sortBookmarksByTitle  = bm => sortBookmarks(bm, "title");
+export const sortBookmarksByDomain = bm => sortBookmarks(bm, "domain");
 
 export function containsSearchTerm(text, searchTerm) {
     if (!text || !searchTerm) return false;
-    const searchTerms = searchTerm.toLowerCase().split(" ");
-    return searchTerms.every((term) => text.toLowerCase().includes(term));
+    const lower = text.toLowerCase();
+    return searchTerm.toLowerCase().split(" ").every(t => lower.includes(t));
 }
 
-// sortBy: "recently-added" | "title" | "domain"
-// filterIds: string[] of folder ids (empty array = no filter)
 export function filterBookmarks(allBookmarks, searchTerm, filterIds, sortBy = "recently-added") {
-    let sorted;
-    switch (sortBy) {
-        case "title":           sorted = sortBookmarksByTitle(allBookmarks); break;
-        case "domain":          sorted = sortBookmarksByDomain(allBookmarks); break;
-        default:                sorted = sortByRecentlyAdded(allBookmarks); break;
-    }
-
-    return sorted.filter((bookmark) => {
+    const hasFilter = filterIds && filterIds.length > 0;
+    return sortBookmarks(allBookmarks, sortBy).filter(({ bookmark }) => {
         const matchesSearch = !searchTerm ||
-            containsSearchTerm(bookmark.bookmark.title, searchTerm) ||
-            containsSearchTerm(bookmark.bookmark.url, searchTerm);
-
-        if (filterIds && filterIds.length > 0) {
-            const matchesFolder = filterIds.some(id => bookmark.bookmark.parentId == id);
-            return matchesSearch && matchesFolder;
-        }
-
-        return matchesSearch;
+            containsSearchTerm(bookmark.title, searchTerm) ||
+            containsSearchTerm(bookmark.url, searchTerm);
+        return matchesSearch && (!hasFilter || filterIds.some(id => bookmark.parentId == id));
     });
 }
 
-// Returns a Set containing every folder ID that is equal to or a descendant of
-// any ID in filterIds. Used so that selecting a parent folder also shows bookmarks
-// that live inside its sub-folders.
 export function expandFolderIds(filterIds, tree) {
     if (!filterIds || filterIds.length === 0) return new Set();
     const selected = new Set(filterIds.map(String));
     const result = new Set();
-
-    function walk(nodes, parentIncluded) {
+    const walk = (nodes, inherited) => {
         for (const node of nodes) {
-            if (node.url) continue; // leaf bookmark, not a folder
-            const include = parentIncluded || selected.has(String(node.id));
+            if (node.url) continue;
+            const include = inherited || selected.has(String(node.id));
             if (include) result.add(String(node.id));
             if (node.children) walk(node.children, include);
         }
-    }
-
-    if (tree && tree[0]) walk(tree[0].children, false);
+    };
+    if (tree?.[0]) walk(tree[0].children, false);
     return result;
 }
 
-// Returns groups of bookmarks that share the same URL
-// Returns: Array of arrays — each inner array has 2+ {bookmark, folder} entries
-export function findDuplicateBookmarks(allBookmarks) {
-    const urlMap = new Map();
+function groupEntries(allBookmarks, keyFn) {
+    const map = new Map();
     for (const entry of allBookmarks) {
-        const url = entry.bookmark.url;
-        if (!url) continue;
-        if (!urlMap.has(url)) urlMap.set(url, []);
-        urlMap.get(url).push(entry);
+        const key = keyFn(entry);
+        if (!key) continue;
+        (map.get(key) || (map.set(key, []), map.get(key))).push(entry);
     }
-    return Array.from(urlMap.values()).filter(group => group.length > 1);
+    return [...map.values()].filter(g => g.length > 1);
 }
 
-// Returns groups of bookmarks that share the same domain (hostname)
-// Each group is sorted by dateAdded ascending (oldest first)
+export function findDuplicateBookmarks(allBookmarks) {
+    return groupEntries(allBookmarks, e => e.bookmark.url);
+}
+
 export function findSameDomainGroups(allBookmarks) {
-    const domainMap = new Map();
-    for (const entry of allBookmarks) {
-        const url = entry.bookmark.url;
-        if (!url) continue;
-        try {
-            const hostname = new URL(url).hostname;
-            if (!domainMap.has(hostname)) domainMap.set(hostname, []);
-            domainMap.get(hostname).push(entry);
-        } catch (e) { /* skip invalid URLs */ }
-    }
-    return Array.from(domainMap.values())
-        .filter(group => group.length > 1)
-        .map(group => group.slice().sort((a, b) => (a.bookmark.dateAdded || 0) - (b.bookmark.dateAdded || 0)));
+    const getHostname = url => { try { return new URL(url).hostname; } catch { return ""; } };
+    return groupEntries(allBookmarks, e => getHostname(e.bookmark.url) || null)
+        .map(g => g.slice().sort((a, b) => (a.bookmark.dateAdded || 0) - (b.bookmark.dateAdded || 0)));
 }

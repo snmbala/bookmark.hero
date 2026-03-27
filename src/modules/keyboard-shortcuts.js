@@ -1,4 +1,4 @@
-// Keyboard shortcuts for Thumbmarks
+// Keyboard shortcuts for Thumbmark
 const DEBUG = false;
 const dbg = (...args) => { if (DEBUG) console.log(...args); };
 
@@ -158,6 +158,7 @@ window.updateBookmarkCards = updateBookmarkCards;
 function openShortcutsModal() {
     const modal = document.getElementById('shortcuts-modal');
     if (!modal) return;
+    if (typeof window.closeAllModals === 'function') window.closeAllModals('shortcuts-modal');
     modal.classList.remove('hidden');
     const closeBtn = document.getElementById('close-shortcuts-btn');
     if (closeBtn) setTimeout(() => closeBtn.focus(), 50);
@@ -432,6 +433,12 @@ function setupKeyboardListeners() {
             const managePanelEl = document.getElementById('manage-panel');
             if (managePanelEl && !managePanelEl.classList.contains('hidden')) {
                 if (window.closeManagePanel) window.closeManagePanel();
+                return;
+            }
+            const addModalEl = document.getElementById("add-modal");
+            if (addModalEl && !addModalEl.classList.contains("hidden")) {
+                if (window.closeAddModal) window.closeAddModal();
+                else addModalEl.classList.add("hidden");
                 return;
             }
             const editModalEl = document.getElementById("edit-modal");

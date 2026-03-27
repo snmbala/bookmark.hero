@@ -1,12 +1,12 @@
 {
-  "name": "bookmark-hero",
-  "version": "1.5.1",
+  "name": "thumbmark",
+  "version": "1.6.0",
   "description": "Visual bookmark manager for Chrome - auto-captured thumbnails, smart search, keyboard shortcuts",
   "type": "module",
   "main": "background.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snmbala/bookmark.hero"
+    "url": "https://github.com/snmbala/thumbmark"
   },
   "author": "Balamurugan",
   "license": "MIT",
@@ -14,8 +14,9 @@
     "build:css": "npx tailwindcss -i ./css/input.css -o ./dist/css/styles.css --minify",
     "build": "npm run build:css && vite build",
     "build:safari": "npm run build",
-    "test": "vitest",
-    "package": "npm run build && cd dist && zip -r ../bookmark-hero-dist.zip . && cd .. && echo '✅ Package created: bookmark-hero-dist.zip'"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && cd dist && zip -r ../thumbmark-dist.zip . && cd .. && echo '✅ Package created: thumbmark-dist.zip'"
   },
   "keywords": ["bookmarks", "chrome-extension", "productivity", "visual", "search"],
   "devDependencies": {

@@ -8,7 +8,10 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: 'manifest.json', dest: '.' },
-        { src: 'assets/*', dest: 'assets' },
+        { src: 'assets/icons/bookmark.png', dest: 'assets/icons' },
+        { src: 'assets/icons/chrome.svg', dest: 'assets/icons' },
+        { src: 'assets/icons/edge.svg', dest: 'assets/icons' },
+        { src: 'assets/icons/safari.svg', dest: 'assets/icons' },
         { src: 'src/main.html', dest: '.' },
         { src: 'src/popover-init.js', dest: '.' }
       ]
