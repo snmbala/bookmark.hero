@@ -16,13 +16,26 @@
 			overflow: hidden;
 			margin: 0;
 		}
+		/* Hide main layout in popover, show only popover-layout */
 		[data-mode="popover"] #app-header,
 		[data-mode="popover"] main,
 		[data-mode="popover"] footer,
 		[data-mode="popover"] #duplicate-banner,
-		[data-mode="popover"] #top-right-controls,
-		[data-mode="popover"] #top-left-controls { display: none !important; }
-		[data-mode="popover"] #popover-layout { display: flex !important; }
+		[data-mode="popover"] #top-right-controls { 
+			display: none !important; 
+			visibility: hidden !important;
+			height: 0 !important;
+		}
+		[data-mode="popover"] #popover-layout { 
+			display: flex !important; 
+			visibility: visible !important;
+			height: 100% !important;
+			width: 100% !important;
+		}
+		[data-mode="popover"] #settings-grid-cols-section,
+		[data-mode="popover"] #settings-ai-provider-section {
+			display: none !important;
+		}
 	</style>
 	<script src="popover-init.js"></script>
 </head>
@@ -154,28 +167,6 @@
 				<div>
 					<h3 class="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Same-Domain Bookmarks</h3>
 					<p id="dedup-progress" class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5"></p>
-				<!-- Top-left controls -->
-				<div id="top-left-controls" class="fixed top-4 left-5 z-50">
-					<div class="flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-3 py-1.5 shadow-sm">
-						<span class="text-xs text-zinc-600 dark:text-zinc-300">New Tab</span>
-						<button type="button" id="new-tab-top-toggle" role="switch" aria-checked="true"
-							class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
-							<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
-						</button>
-					</div>
-				</div>
-
-				<!-- Top-left controls -->
-				<div id="top-left-controls" class="fixed top-4 left-5 z-50">
-					<div class="flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-3 py-1.5 shadow-sm">
-						<span class="text-xs text-zinc-600 dark:text-zinc-300">New Tab</span>
-						<button type="button" id="new-tab-top-toggle" role="switch" aria-checked="true"
-							class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
-							<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
-						</button>
-					</div>
-				</div>
-
 				</div>
 				<button id="dedup-review-close" aria-label="Close"
 					class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-700 dark:focus:ring-zinc-400 rounded-md">
@@ -380,7 +371,6 @@
 		</div>
 	</div>
 	<!-- End Manage Folders Panel -->
-
 
 	<!-- Top-right controls -->
 	<div id="top-right-controls" class="fixed top-4 right-5 z-50 flex items-center gap-1">
@@ -668,20 +658,6 @@
 					<!-- Scrollable body -->
 					<div class="overflow-y-auto max-h-[70vh] px-6 pb-4">
 
-						<!-- New Tab -->
-						<div class="py-3">
-							<div class="flex items-center justify-between">
-								<div>
-									<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show on new tab</span>
-									<p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Replace the default new tab with your bookmarks</p>
-								</div>
-								<button type="button" id="new-tab-toggle" role="switch" aria-checked="true"
-									class="flex-shrink-0 ml-3 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 dark:focus:ring-offset-zinc-900 bg-indigo-500">
-									<span class="inline-block h-3.5 w-3.5 translate-x-4 rounded-full bg-white shadow transition-transform"></span>
-								</button>
-							</div>
-						</div>
-
 						<!-- Appearance -->
 						<div class="py-3">
 							<div class="mb-2">
@@ -704,7 +680,7 @@
 						</div>
 
 						<!-- Cards per Row -->
-						<div class="py-3">
+						<div id="settings-grid-cols-section" class="py-3">
 							<div class="mb-2">
 								<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Cards per Row</span>
 							</div>
@@ -786,7 +762,7 @@
 
 						<!-- Built with love by Bala -->
 						<!-- AI Provider -->
-						<div class="py-3">
+						<div id="settings-ai-provider-section" class="py-3">
 							<span class="text-sm font-medium text-zinc-900 dark:text-zinc-100 block mb-2">AI Provider</span>
 							<div class="relative mb-2">
 								<select id="ai-provider-select"

@@ -95,5 +95,3 @@ export function populateFilterDropdown(bookmarkTreeNodes, onToggle, getActiveIds
 
     return filterOptions;
 }
-
-export function updateClearFilterButton() {}

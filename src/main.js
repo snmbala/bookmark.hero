@@ -20,6 +20,7 @@ import {
     getDynamicTitle
 } from './modules/ui-renderer.js';
 
+
 // ─── App State ───────────────────────────────────────────────────────────────
 let FILTER_IDS = new Set(); // set of selected folder id strings
 let SORT_BY = 'recently-added';
@@ -80,7 +81,9 @@ getCachedBookmarks().then(function (bookmarks) {
     settingsButton.addEventListener("click", function (event) {
         event.stopPropagation();
         const willOpen = settingsModal.classList.contains('hidden');
-        if (willOpen) closeAllModals('settings-modal');
+        if (willOpen) {
+            closeAllModals('settings-modal');
+        }
         settingsModal.classList.toggle("hidden");
         settingsModalOpen = !settingsModal.classList.contains("hidden");
         settingsButton.setAttribute('aria-expanded', settingsModalOpen ? 'true' : 'false');
@@ -123,10 +126,11 @@ getCachedBookmarks().then(function (bookmarks) {
     // Grid columns toggle buttons
     document.querySelectorAll('.grid-cols-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            GRID_COLS = Number(btn.getAttribute('data-grid-cols'));
+            const newCols = Number(btn.getAttribute('data-grid-cols'));
+            GRID_COLS = newCols;
             chrome.storage.sync.set({ gridCols: GRID_COLS });
             applyGridColsUI();
-            updateView(searchInput.value.trim().toLowerCase());
+            updateView(getSearchTerm());
         });
     });
 
@@ -156,13 +160,18 @@ getCachedBookmarks().then(function (bookmarks) {
     });
 });
 
-// ─── Bootstrap (populate data then render) ───────────────────────────────────
-function bootstrapBookmarks() {
+// ─── Shared State Rebuilder ──────────────────────────────────────────────────
+function _rebuildLocalState() {
     allBookmarks = [];
     for (const node of bookmarkTree[0].children) {
         collectBookmarks(node, allBookmarks);
     }
     filterOptions = populateFilterDropdown(bookmarkTree[0].children, onToggleFolder, () => FILTER_IDS);
+}
+
+// ─── Bootstrap (populate data then render) ───────────────────────────────────
+function bootstrapBookmarks() {
+    _rebuildLocalState();
     wireEventListeners();
     initFilterPanel();
     if (isPopoverMode) initPopoverMode();
@@ -176,14 +185,9 @@ function refreshApp() {
     invalidateCache();
     getCachedBookmarks().then(function (bookmarks) {
         bookmarkTree = bookmarks;
-        allBookmarks = [];
-        for (const node of bookmarkTree[0].children) {
-            collectBookmarks(node, allBookmarks);
-        }
-        filterOptions = populateFilterDropdown(bookmarkTree[0].children, onToggleFolder, () => FILTER_IDS);
+        _rebuildLocalState();
         if (isPopoverMode) buildPopoverFilterPanel();
-        const searchTerm = searchInput.value.trim().toLowerCase();
-        updateView(searchTerm);
+        updateView(getSearchTerm());
         checkForDuplicates();
         cleanupEmptyFolders();
     });
@@ -195,7 +199,7 @@ function onToggleFolder(id, checked) {
     if (checked) FILTER_IDS.add(id);
     else FILTER_IDS.delete(id);
     updateFilterLabel();
-    updateView(searchInput.value.trim().toLowerCase());
+    updateView(getSearchTerm());
 }
 
 function updateFilterLabel() {
@@ -325,7 +329,7 @@ function showGridView(searchTerm) {
     sortSelectEl.addEventListener("change", function () {
         SORT_BY = sortSelectEl.value;
         chrome.storage.sync.set({ sortPreference: SORT_BY });
-        updateView(searchInput.value.trim().toLowerCase());
+        updateView(getSearchTerm());
     });
 
     const sortIcon = iconEl('arrow-up-down', 'absolute top-1/2 -translate-y-1/2 left-0 pointer-events-none opacity-50 text-zinc-600 dark:text-zinc-300');
@@ -365,7 +369,7 @@ function showGridView(searchTerm) {
                 updateFilterLabel();
                 const cb = document.querySelector(`#filter-panel input[value="${id}"]`);
                 if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
-                updateView(searchInput.value.trim().toLowerCase());
+                updateView(getSearchTerm());
             });
 
             tag.appendChild(tagLabel);
@@ -381,7 +385,7 @@ function showGridView(searchTerm) {
             updateFilterLabel();
             // Uncheck all checkboxes in the panel
             document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change')); });
-            updateView(searchInput.value.trim().toLowerCase());
+            updateView(getSearchTerm());
         });
         tagsRow.appendChild(clearAllBtn);
 
@@ -618,6 +622,9 @@ const SEARCH_MODE_CONFIG = {
     ai:        { placeholder: 'Ask AI anything...',   showFilter: false }
 };
 
+// ─── Helper: Get normalized search term ────────────────────────────────────────
+const getSearchTerm = () => searchInput?.value.trim().toLowerCase() || '';
+
 const SEARCH_ENGINES = {
     google:     { name: 'Google',     url: 'https://www.google.com/search?q=',    icon: 'https://www.google.com/favicon.ico' },
     bing:       { name: 'Bing',       url: 'https://www.bing.com/search?q=',      icon: 'https://www.bing.com/favicon.ico' },
@@ -627,6 +634,10 @@ const SEARCH_ENGINES = {
 let SEARCH_ENGINE = 'google';
 
 function setSearchMode(mode) {
+    // Force bookmarks mode in popover
+    if (isPopoverMode) {
+        mode = 'bookmarks';
+    }
     // Clean up AI chat layout when leaving AI mode
     if (mode !== 'ai') {
         document.body.classList.remove('ai-chat-active');
@@ -678,8 +689,10 @@ function setSearchMode(mode) {
         }
     }
 
-    // Persist preference
-    chrome.storage.sync.set({ searchMode: mode });
+    // Persist preference (don't persist AI mode in popover)
+    if (!isPopoverMode) {
+        chrome.storage.sync.set({ searchMode: mode });
+    }
 }
 
 function setSearchEngine(engine) {
@@ -714,17 +727,6 @@ let _currentConvId = null;  // ID of the loaded/active conversation
 // ─── Conversation history (chrome.storage.local key: 'aiChatHistory') ────────
 const AI_HISTORY_KEY = 'aiChatHistory';
 const AI_HISTORY_MAX = 50; // max saved conversations
-
-function _historyTimestamp(ts) {
-    const d = new Date(ts);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-    const isYesterday = d.toDateString() === yesterday.toDateString();
-    if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (isYesterday) return 'Yesterday ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
 
 function saveCurrentConversation() {
     // Only save if there are actual user messages
@@ -1056,6 +1058,12 @@ function parseMarkdown(text) {
     }).join('');
 
     return s;
+}
+
+function isAiNearBottom(container, threshold = 48) {
+    if (!container) return true;
+    const distanceFromBottom = container.scrollHeight - container.clientHeight - container.scrollTop;
+    return distanceFromBottom <= threshold;
 }
 
 function renderAiMessages() {
@@ -1741,18 +1749,13 @@ function refreshManageAndMain() {
     invalidateCache();
     getCachedBookmarks().then(function (newTree) {
         bookmarkTree = newTree;
-        allBookmarks = [];
-        for (const node of bookmarkTree[0].children) {
-            collectBookmarks(node, allBookmarks);
-        }
-        filterOptions = populateFilterDropdown(bookmarkTree[0].children, onToggleFolder, () => FILTER_IDS);
+        _rebuildLocalState();
         if (isPopoverMode) buildPopoverFilterPanel();
         renderManageContent();
         if (isPopoverMode && !document.getElementById('popover-manage-page').classList.contains('hidden')) {
             renderManageContent('popover-manage-folder-list');
         }
-        const searchTerm = searchInput.value.trim().toLowerCase();
-        updateView(searchTerm);
+        updateView(getSearchTerm());
     });
 }
 
@@ -1885,7 +1888,7 @@ function deleteBookmarkWithUndo(bookmarkNode) {
     pendingDelete = allBookmarks.find(b => b.bookmark.id === bookmarkNode.id)
         || { bookmark: bookmarkNode, folder: "" };
     allBookmarks = allBookmarks.filter(b => b.bookmark.id !== bookmarkNode.id);
-    updateView(searchInput.value.trim().toLowerCase());
+    updateView(getSearchTerm());
     showUndoToast(`"${bookmarkNode.title}" deleted`);
 
     undoTimer = setTimeout(function () {
@@ -1895,7 +1898,7 @@ function deleteBookmarkWithUndo(bookmarkNode) {
 
 function deleteBookmarkDirect(bookmarkNode) {
     allBookmarks = allBookmarks.filter(b => b.bookmark.id !== bookmarkNode.id);
-    updateView(searchInput.value.trim().toLowerCase());
+    updateView(getSearchTerm());
     chrome.bookmarks.remove(bookmarkNode.id, function () {
         chrome.storage.local.remove([bookmarkNode.url]);
     });
@@ -1920,7 +1923,7 @@ function undoPendingDelete() {
     hideUndoToast();
     // Restore the full entry including original folder context
     allBookmarks.push(entry);
-    updateView(searchInput.value.trim().toLowerCase());
+    updateView(getSearchTerm());
 }
 
 function showUndoToast(message) {
@@ -2612,10 +2615,14 @@ function resetFeedbackPanel() {
 }
 
 function wireEventListeners() {
-    // Search mode tab buttons
+    // Search mode tab buttons (disabled in popover - force bookmarks only)
     document.querySelectorAll('.search-mode-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            setSearchMode(btn.dataset.searchMode);
+            if (isPopoverMode) {
+                setSearchMode('bookmarks');
+            } else {
+                setSearchMode(btn.dataset.searchMode);
+            }
         });
     });
 
@@ -2629,7 +2636,7 @@ function wireEventListeners() {
                 if (hasText) {
                     if (clearSearch) clearSearch.classList.remove("hidden");
                     if (searchIcon) { searchIcon.classList.remove("text-zinc-400"); searchIcon.classList.add("text-indigo-500"); }
-                    performSearch(searchInput.value.trim().toLowerCase());
+                    performSearch(getSearchTerm());
                 } else {
                     performSearch.cancel && performSearch.cancel();
                     if (clearSearch) clearSearch.classList.add("hidden");
@@ -3639,30 +3646,8 @@ function buildPopoverCard(bookmarkNode, folderName) {
 function initViewModeToggle() {
     chrome.storage.sync.get(['viewMode', 'showOnNewTab'], function (result) {
         updateViewModeUI(result.viewMode || 'new-tab');
-        updateNewTabToggleUI(result.showOnNewTab !== false);
     });
 
-    const newTabToggle = document.getElementById('new-tab-toggle');
-    const newTabTopToggle = document.getElementById('new-tab-top-toggle');
-
-    function handleToggleClick(toggleEl) {
-        if (!toggleEl) return;
-        const current = toggleEl.getAttribute('aria-checked') === 'true';
-        const next = !current;
-        chrome.storage.sync.set({ showOnNewTab: next });
-        updateNewTabToggleUI(next);
-    }
-
-    if (newTabToggle) {
-        newTabToggle.addEventListener('click', function () {
-            handleToggleClick(newTabToggle);
-        });
-    }
-    if (newTabTopToggle) {
-        newTabTopToggle.addEventListener('click', function () {
-            handleToggleClick(newTabTopToggle);
-        });
-    }
 
     document.querySelectorAll('.view-mode-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -3698,23 +3683,3 @@ function updateViewModeUI(mode) {
     });
 }
 
-function updateNewTabToggleUI(enabled) {
-    const toggles = [
-        document.getElementById('new-tab-toggle'),
-        document.getElementById('new-tab-top-toggle')
-    ].filter(Boolean);
-
-    toggles.forEach(function (toggle) {
-        toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
-        const thumb = toggle.querySelector('span');
-        if (enabled) {
-            toggle.classList.remove('bg-zinc-300', 'dark:bg-zinc-600');
-            toggle.classList.add('bg-indigo-500');
-            if (thumb) { thumb.classList.remove('translate-x-1'); thumb.classList.add('translate-x-4'); }
-        } else {
-            toggle.classList.remove('bg-indigo-500');
-            toggle.classList.add('bg-zinc-300', 'dark:bg-zinc-600');
-            if (thumb) { thumb.classList.remove('translate-x-4'); thumb.classList.add('translate-x-1'); }
-        }
-    });
-}
