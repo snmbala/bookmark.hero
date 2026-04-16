@@ -44,7 +44,6 @@ let SEARCH_MODE = 'bookmarks'; // 'bookmarks' | 'web' | 'ai'
 let allBookmarks = [];
 let filterOptions = [];
 let bookmarkTree = null;
-let _isCleaningUp = false; // prevents onRemoved loop during empty-folder cleanup
 
 // ─── Popover mode detection ───────────────────────────────────────────────────
 const isPopoverMode = new URLSearchParams(window.location.search).get('mode') === 'popover';
@@ -213,7 +212,6 @@ function bootstrapBookmarks() {
     if (isPopoverMode) initPopoverMode();
     updateView("");
     checkForDuplicates();
-    cleanupEmptyFolders();
 }
 
 // ─── Refresh app state without full page reload ───────────────────────────────
@@ -225,7 +223,6 @@ function refreshApp() {
         if (isPopoverMode) buildPopoverFilterPanel();
         updateView(getSearchTerm());
         checkForDuplicates();
-        cleanupEmptyFolders();
     });
 }
 window.refreshApp = refreshApp;
@@ -293,7 +290,7 @@ function initFilterPanel() {
 
 // ─── Real-time Chrome bookmark sync ──────────────────────────────────────────
 chrome.bookmarks.onCreated.addListener(function () { refreshApp(); });
-chrome.bookmarks.onRemoved.addListener(function () { if (!_isCleaningUp) refreshApp(); });
+chrome.bookmarks.onRemoved.addListener(function () { refreshApp(); });
 chrome.bookmarks.onMoved.addListener(function ()   { refreshApp(); });
 chrome.bookmarks.onChanged.addListener(function ()  { refreshApp(); });
 
@@ -1444,55 +1441,6 @@ function bulkDeleteBroken() {
     removeNext();
 }
 
-// ─── Empty folder removal ─────────────────────────────────────────────────────
-// Returns ids of outermost folders that contain zero bookmarks at any depth.
-// System root folders (Bookmarks Bar etc.) are never added but are traversed.
-function findEmptyFolderIds(tree) {
-    const SKIP_LC = new Set(['bookmarks bar', 'other bookmarks', 'mobile bookmarks']);
-    const isSkipped = title => SKIP_LC.has((title || '').toLowerCase());
-    const emptyIds = [];
-
-    function hasBookmark(node) {
-        if (node.url) return true;
-        return (node.children || []).some(hasBookmark);
-    }
-
-    function collect(nodes) {
-        (nodes || []).forEach(function (node) {
-            if (node.url) return;                          // skip individual bookmarks
-            if (isSkipped(node.title)) { collect(node.children); return; } // enter root folders, never delete them
-            if (!hasBookmark(node)) {
-                emptyIds.push(node.id);                    // whole subtree is empty — delete at this level
-            } else {
-                collect(node.children);                    // contains bookmarks — descend to find empty sub-folders
-            }
-        });
-    }
-
-    if (tree && tree[0]) collect(tree[0].children);
-    return emptyIds;
-}
-
-// Silent: called automatically on load and after every refresh.
-// Uses _isCleaningUp to prevent onRemoved from firing extra refreshApp calls.
-async function cleanupEmptyFolders() {
-    if (_isCleaningUp) return;
-    const emptyIds = findEmptyFolderIds(bookmarkTree);
-    if (emptyIds.length === 0) return;
-
-    _isCleaningUp = true;
-    for (const id of emptyIds) {
-        await new Promise(resolve => {
-            chrome.bookmarks.removeTree(id, function () {
-                void chrome.runtime.lastError; // folder may already be gone
-                resolve();
-            });
-        });
-    }
-    _isCleaningUp = false;
-    refreshApp();
-}
-
 // ─── Storage usage ─────────────────────────────────────────────────────────────
 function updateStorageUsage() {
     chrome.storage.local.getBytesInUse(null, function (bytesInUse) {
@@ -1872,7 +1820,11 @@ function wireEventListeners() {
             let finalUrl = url;
             if (!/^https?:\/\//i.test(finalUrl)) finalUrl = 'https://' + finalUrl;
 
-            chrome.bookmarks.create({ parentId, title, url: finalUrl }, function () {
+            chrome.bookmarks.create({ parentId, title, url: finalUrl }, function (result) {
+                if (chrome.runtime.lastError || !result) {
+                    showErr('Failed to save bookmark. Please try again.');
+                    return;
+                }
                 closeAddModal();
                 refreshApp();
             });
@@ -1918,7 +1870,7 @@ window.showSnackbar            = showSnackbar;
 window.hideSnackbar            = hideSnackbar;
 
 // ─── Capture failure feedback ─────────────────────────────────────────────────
-document.addEventListener('thumbmarks:capture-failed', function () {
+document.addEventListener('thumbmark:capture-failed', function () {
     showSnackbar('Screenshot capture failed. The site may have blocked it.');
     hideSnackbar(3500);
 });
@@ -2084,7 +2036,7 @@ function initPopoverMode() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         access_key: WEB3FORMS_KEY_POPOVER,
-                        subject: `Thumbmarks Feedback — ${category}`,
+                        subject: `Thumbmark Feedback — ${category}`,
                         name,
                         email: email || 'Not provided',
                         category,

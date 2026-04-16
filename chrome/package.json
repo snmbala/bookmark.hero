@@ -1,6 +1,6 @@
 {
   "name": "thumbmark",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "Visual bookmark manager for Chrome - auto-captured thumbnails, smart search, keyboard shortcuts",
   "type": "module",
   "main": "background.js",
